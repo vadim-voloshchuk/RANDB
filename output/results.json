@@ -1,0 +1,20 @@
+[
+    {
+        "episode": 1,
+        "total_reward": -96.47554286698512,
+        "wins": 0,
+        "loses": 1
+    },
+    {
+        "episode": 2,
+        "total_reward": 99.9,
+        "wins": 1,
+        "loses": 1
+    },
+    {
+        "episode": 3,
+        "total_reward": 100.37213595499958,
+        "wins": 2,
+        "loses": 1
+    }
+]

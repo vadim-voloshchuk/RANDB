@@ -1,0 +1,8 @@
+setup.py
+redandblue/__init__.py
+redandblue/redandblue.py
+redandblue.egg-info/PKG-INFO
+redandblue.egg-info/SOURCES.txt
+redandblue.egg-info/dependency_links.txt
+redandblue.egg-info/requires.txt
+redandblue.egg-info/top_level.txt

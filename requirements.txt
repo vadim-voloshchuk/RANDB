@@ -1,0 +1,5 @@
+gymnasium~=0.29.1
+setuptools~=69.5.1
+numpy~=1.26.4
+pygame~=2.5.2
+tensorflow

@@ -17,6 +17,9 @@ from models.neural import NeuralAgent
 from models.advanced_neural import AdvancedNeuralAgent
 from models.rnn_agent import RNNNeuralAgent
 from models.cnn_rnn import CNNRNNNeuralAgent
+from models.q_learning import QLearningAgent 
+from models.decision_tree import DecisionTreeAgent
+from models.pretentious_pytorch import PretentiousAgent # Добавьте импорт PretentiousAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -93,11 +96,24 @@ def main(args):
         agent = RNNNeuralAgent()
     elif args.agent == "cnnrnn":
         agent = CNNRNNNeuralAgent()
+    elif args.agent == "pretentious_pytorch":  # Добавьте выбор PretentiousAgent
+        state_dim = env_show.observation_space['agent'].shape[0] # Вставьте правильное значение
+        action_dim = env_show.action_space['move'].n  # Вставьте правильное значение
+        agent = PretentiousAgent(env_show, state_dim, action_dim)
+
+    
+        agent = PretentiousAgent(env_show, state_dim, action_dim)
     else:
         raise ValueError(f"Unknown agent type: {args.agent}")
-
-    # Run the chosen agent
-    agent.run_model(env_show, episodes=args.episodes, output_dir=args.output_dir) 
+    
+        # Запуск выбранного агента
+    if args.agent == "pretentious_pytorch":
+        for episode in range(args.episodes):
+            total_reward = agent.run_episode(render=args.render)  # Измените вызов run_model
+            agent.learn()
+            print(f"Episode: {episode + 1}, Total Reward: {total_reward}")
+    else:
+        agent.run_model(env_show, episodes=args.episodes, output_dir=args.output_dir) 
 
     logging.info("Finished running Red and Blue environment")
 
@@ -105,7 +121,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Red and Blue environment runner with profiling.")
-    parser.add_argument("--agent", type=str, default="cnnrnn", choices=["heuristic", "neural", "advanced-neural","rnn", "cnnrnn"], help="Agent to use (heuristic, neural, advanced-neural, rnn)")
     parser.add_argument("--size", type=int, default=100, help="Size of the environment grid")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second for rendering")
     parser.add_argument("--obstacle_type", type=str, default="random", choices=["random", "preset"], help="Type of obstacles")
@@ -113,6 +128,11 @@ if __name__ == "__main__":
     parser.add_argument("--target_behavior", type=str, default="circle", choices=["circle", "random"], help="Target behavior")
     parser.add_argument("--episodes", type=int, default=1000, help="Number of episodes to run (for training agents)")
     parser.add_argument("--output_dir", type=str, default="output", help="Directory to save logs and results")
+    parser.add_argument("--agent", type=str, default="cnnrnn", 
+                        choices=["heuristic", "neural", "advanced-neural", "rnn", "cnnrnn", 
+                                 "qlearning", "decision_tree", "pretentious_pytorch"],  # Добавьте pretentious_pytorch
+                        help="Agent to use") 
+
 
     # Добавляем аргументы для использования GPU и рендеринга
     parser.add_argument("--gpu", action="store_true", help="Use GPU for acceleration (if available)")

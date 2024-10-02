@@ -39,21 +39,34 @@ class PretentiousAgent:
 
     def _build_model(self):
         """Builds the CNN-RNN model with two outputs."""
-        state_input = nn.Linear(self.sequence_length * self.state_size, 128).to(self.device)
-        grid_input = nn.Conv2d(1, 64, kernel_size=3, padding=1).to(self.device)
-        grid_input = nn.ReLU().to(self.device)
-        grid_input = nn.MaxPool2d(kernel_size=2).to(self.device)
-        grid_input = nn.Flatten().to(self.device)
+        # State processing
+        state_input = nn.Sequential(
+            nn.Linear(self.sequence_length * self.state_size, 128),
+            nn.ReLU()
+        ).to(self.device)
 
+        # Grid processing (CNN layers)
+        conv_layers = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+            nn.Flatten()
+        ).to(self.device)
+
+        # LSTM for sequence processing
         lstm = nn.LSTM(input_size=self.state_size, hidden_size=128, batch_first=True).to(self.device)
 
-        merged = nn.Linear(128 + grid_input.out_features, 256).to(self.device)
-        merged = nn.ReLU().to(self.device)
+        # Fully connected layer to merge LSTM and CNN outputs
+        merge_layer = nn.Sequential(
+            nn.Linear(128 + 64 * (self.grid_size // 2) * (self.grid_size // 2), 256),
+            nn.ReLU()
+        ).to(self.device)
 
+        # Move and view action outputs
         move_output = nn.Linear(256, self.move_actions).to(self.device)
         view_output = nn.Linear(256, self.view_actions).to(self.device)
 
-        model = nn.ModuleList([state_input, grid_input, lstm, merged, move_output, view_output])
+        model = nn.ModuleList([state_input, conv_layers, lstm, merge_layer, move_output, view_output])
         return model
 
     def update_target_model(self):
@@ -91,7 +104,6 @@ class PretentiousAgent:
         model = self.target_model if use_target else self.model
         state_input = model[0](state_input.view(-1, self.sequence_length * self.state_size))
         grid_input = model[1](grid_input)
-        grid_input = grid_input.view(grid_input.size(0), -1)
         lstm_out, _ = model[2](state_input.unsqueeze(0))
         merged = torch.cat((lstm_out[:, -1, :], grid_input), dim=1)
         merged = model[3](merged)
@@ -161,12 +173,11 @@ class PretentiousAgent:
                 next_state = np.reshape(next_state, [1, self.state_size])
                 next_grid = self._create_grid_representation(info["obstacles"])
                 self.train(state, move_action, view_action, reward, next_state, done, grid, next_grid)
-                print(reward, state. next_state)
+                print(reward, state, next_state)
                 state = next_state
                 grid = next_grid
                 total_reward += reward
                 iteration += 1
-                
 
             if total_reward > 0:
                 wins += 1
@@ -186,30 +197,21 @@ class PretentiousAgent:
     def _process_state(self, state):
         agent_pos = state["agent"]
         target_pos = state["target"]
-        distance_to_target = np.linalg.norm(agent_pos - target_pos)
-        processed_state = np.concatenate((agent_pos, target_pos, [distance_to_target]))
-        return processed_state
-
-    def _process_action(self, move_action, view_action):
-        view_angle_action = view_action * 30  # Example: 12 actions -> 360 degrees
-        return {"move": move_action, "view_angle": view_angle_action}
+        distance_to_target = np.linalg.norm(np.array(target_pos) - np.array(agent_pos))
+        return [agent_pos[0], agent_pos[1], target_pos[0], target_pos[1], distance_to_target]
 
     def _create_grid_representation(self, obstacles):
-        grid = np.zeros((self.grid_size, self.grid_size), dtype=np.float32)
-        for obstacle in obstacles:
-            grid[obstacle[0], obstacle[1]] = 1.0
+        grid = np.zeros((self.grid_size, self.grid_size))
+        for (x, y) in obstacles:
+            grid[x, y] = 1
         return grid
 
-    def load_weights(self, model_path):
-        try:
-            self.model.load_state_dict(torch.load(model_path))
-            print(f"Weights loaded successfully from: {model_path}")
-        except Exception as e:
-            print(f"Error loading weights from {model_path}: {e}")
+    def _process_action(self, move_action, view_action):
+        return {"move": move_action, "view": view_action}
 
-    def save_weights(self, model_path):
-        try:
-            torch.save(self.model.state_dict(), model_path)
-            print(f"Weights saved successfully to: {model_path}")
-        except Exception as e:
-            print(f"Error saving weights to {model_path}: {e}")
+    def save_weights(self, filepath):
+        torch.save(self.model.state_dict(), filepath)
+
+    def load_weights(self, filepath):
+        self.model.load_state_dict(torch.load(filepath))
+        self.update_target_model()

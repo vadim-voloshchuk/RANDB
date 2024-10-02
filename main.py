@@ -113,7 +113,8 @@ def main(args):
         logging.error(f"Failed to create agent: {e}")
         env_show.close()
         return
-
+    
+    logging.info("Agent initialized.")
     try:
         agent.run_model(env_show, episodes=args.episodes, output_dir=args.output_dir)
     except Exception as e:

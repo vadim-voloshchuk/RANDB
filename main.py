@@ -75,7 +75,7 @@ def main(args):
             agent = QLearningAgent()
         elif args.agent == "decision_tree":
             agent = DecisionTreeAgent()
-        elif args.agent == "pretentious_pytorch":  # Добавьте выбор PretentiousAgent
+        elif args.agent == "pretentious_pytorch":
             agent = PretentiousAgent()
         else:
             raise ValueError(f"Unknown agent type: {args.agent}")

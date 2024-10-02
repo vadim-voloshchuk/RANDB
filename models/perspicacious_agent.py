@@ -38,36 +38,41 @@ class PretentiousAgent:
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
     def _build_model(self):
-        """Builds the CNN-RNN model with two outputs."""
-        # State processing
-        state_input = nn.Sequential(
-            nn.Linear(self.sequence_length * self.state_size, 128),
-            nn.ReLU()
-        ).to(self.device)
+        print("Building model...")
+        try:
+            state_input = nn.Sequential(
+                nn.Linear(self.sequence_length * self.state_size, 128),
+                nn.ReLU()
+            ).to(self.device)
+            print("State input created.")
+            
+            conv_layers = nn.Sequential(
+                nn.Conv2d(1, 64, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2),
+                nn.Flatten()
+            ).to(self.device)
+            print("Convolutional layers created.")
+            
+            lstm = nn.LSTM(input_size=self.state_size, hidden_size=128, batch_first=True).to(self.device)
+            print("LSTM layer created.")
 
-        # Grid processing (CNN layers)
-        conv_layers = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Flatten()
-        ).to(self.device)
+            merge_layer = nn.Sequential(
+                nn.Linear(128 + 64 * (self.grid_size // 2) * (self.grid_size // 2), 256),
+                nn.ReLU()
+            ).to(self.device)
+            print("Merge layer created.")
 
-        # LSTM for sequence processing
-        lstm = nn.LSTM(input_size=self.state_size, hidden_size=128, batch_first=True).to(self.device)
+            move_output = nn.Linear(256, self.move_actions).to(self.device)
+            view_output = nn.Linear(256, self.view_actions).to(self.device)
+            print("Output layers created.")
 
-        # Fully connected layer to merge LSTM and CNN outputs
-        merge_layer = nn.Sequential(
-            nn.Linear(128 + 64 * (self.grid_size // 2) * (self.grid_size // 2), 256),
-            nn.ReLU()
-        ).to(self.device)
+            model = nn.ModuleList([state_input, conv_layers, lstm, merge_layer, move_output, view_output])
+            print("Model built successfully.")
+            return model
+        except Exception as e:
+            print(f"Error during model building: {e}")
 
-        # Move and view action outputs
-        move_output = nn.Linear(256, self.move_actions).to(self.device)
-        view_output = nn.Linear(256, self.view_actions).to(self.device)
-
-        model = nn.ModuleList([state_input, conv_layers, lstm, merge_layer, move_output, view_output])
-        return model
 
     def update_target_model(self):
         self.target_model.load_state_dict(self.model.state_dict())

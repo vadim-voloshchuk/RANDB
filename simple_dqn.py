@@ -78,12 +78,12 @@ if __name__ == "__main__":
             obstacle_percentage=0.05,
             target_behavior='circle'
         )
-    agent = DQNAgent(state_size=4, action_size=5)  # Убедитесь, что state_size соответствует размеру вашего состояния.
+    agent = DQNAgent(state_size=6, action_size=5)  # Убедитесь, что state_size соответствует размеру вашего состояния.
 
     episodes = 1000
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
-        state = np.concatenate((state['agent'], state['target'], state['agent_angle'], state['target_angle']))
+        state = np.concatenate((state['agent'], state['target'], state['agent_angle'], state['target_angle']))  # Объединение всех частей состояния
         done = False
 
         while not done:

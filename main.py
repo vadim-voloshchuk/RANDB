@@ -17,9 +17,9 @@ from models.neural import NeuralAgent
 from models.advanced_neural import AdvancedNeuralAgent
 from models.rnn_agent import RNNNeuralAgent
 from models.cnn_rnn import CNNRNNNeuralAgent
-from models.q_learning import QLearningAgent 
-from models.decision_tree import DecisionTreeAgent
-from models.pretentious_pytorch import PretentiousAgent # Добавьте импорт PretentiousAgent
+from models.qagent import QLearningAgent 
+from models.tree_agent import DecisionTreeAgent
+from models.perspicacious_agent import PretentiousAgent # Добавьте импорт PretentiousAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 

@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
+import gymnasium as gym
+
 
 class DQNAgent:
     def __init__(self, state_size, action_size):
@@ -59,7 +61,15 @@ class DQNAgent:
 
 # Пример использования агента
 if __name__ == "__main__":
-    env = RedAndBlue(render_mode="human")  # инициализация среды
+    env = gym.make(
+            'RedAndBlue-v0.1',
+            render_mode=None,
+            size=100,
+            fps=10,
+            obstacle_type='random',
+            obstacle_percentage=0.05,
+            target_behavior='circle'
+        )
     agent = DQNAgent(state_size=4, action_size=5)  # состояние может содержать координаты агента, координаты цели, угол и т. д.
 
     episodes = 1000

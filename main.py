@@ -95,6 +95,7 @@ def main(args):
 
 if __name__ == "__main__":
     try:
+        print("Initializing PretentiousAgent...")
         agent = PretentiousAgent()
         print("PretentiousAgent initialized successfully.")
     except Exception as e:

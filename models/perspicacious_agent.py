@@ -26,7 +26,7 @@ class PretentiousAgent:
         self.replay_buffer = deque(maxlen=replay_buffer_size)
         self.batch_size = batch_size
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
         self.model = self._build_model().to(self.device)
         self.target_model = self._build_model().to(self.device)
         self.update_target_model()  # Copy weights from model to target_model

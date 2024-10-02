@@ -18,7 +18,7 @@ class DQNAgent:
         self.learning_rate = 0.001
         self.model = self._build_model()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        self.criterion = nn.MSELoss()  # Функция потерь
+        self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
         model = nn.Sequential(
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             obstacle_percentage=0.05,
             target_behavior='circle'
         )
-    agent = DQNAgent(state_size=4, action_size=5)  # состояние может содержать координаты агента, координаты цели, угол и т. д.
+    agent = DQNAgent(state_size=4, action_size=5)  # Убедитесь, что state_size соответствует размеру вашего состояния.
 
     episodes = 1000
     for e in range(episodes):

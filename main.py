@@ -94,38 +94,8 @@ def main(args):
         env_show.close()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Red and Blue environment runner with profiling.")
-    parser.add_argument("--size", type=int, default=100, help="Size of the environment grid")
-    parser.add_argument("--fps", type=int, default=10, help="Frames per second for rendering")
-    parser.add_argument("--obstacle_type", type=str, default="random", choices=["random", "preset"], help="Type of obstacles")
-    parser.add_argument("--obstacle_percentage", type=float, default=0.05, help="Percentage of obstacles")
-    parser.add_argument("--target_behavior", type=str, default="circle", choices=["circle", "random"], help="Target behavior")
-    parser.add_argument("--episodes", type=int, default=1000, help="Number of episodes to run (for training agents)")
-    parser.add_argument("--output_dir", type=str, default="output", help="Directory to save logs and results")
-    parser.add_argument("--agent", type=str, default="cnnrnn", 
-                        choices=["heuristic", "neural", "advanced-neural", "rnn", "cnnrnn", 
-                                 "qlearning", "decision_tree", "pretentious_pytorch"],  # Добавьте pretentious_pytorch
-                        help="Agent to use") 
-
-    # Добавляем аргументы для использования GPU и рендеринга
-    parser.add_argument("--gpu", action="store_true", help="Use GPU for acceleration (if available)")
-    parser.add_argument("--render", action="store_true", help="Enable visualization (rendering)")
-
-    args = parser.parse_args()
-
-    pr = cProfile.Profile()
-    pr.enable()
-
     try:
-        main(args)
-    finally:
-        pr.disable()
-
-        s = io.StringIO()
-        sortby = 'cumulative'
-        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        profile_file = os.path.join(args.output_dir, "profile_stats.txt")
-        with open(profile_file, "w") as f:
-            f.write(s.getvalue())
-        logging.info(f"Profiling results saved to: {profile_file}")
+        agent = PretentiousAgent()
+        print("PretentiousAgent initialized successfully.")
+    except Exception as e:
+        print(f"Failed to initialize PretentiousAgent: {e}")

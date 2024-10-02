@@ -40,7 +40,9 @@ class NeuralAgent:
         target_f = self.model.predict(state)
         target_f[0][action] = target
 
-        self.model.fit(state, target_f, epochs=1, verbose=0)
+        print(target_f)
+
+        self.model.fit(state, target_f, epochs=1, verbose=1)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -49,25 +51,26 @@ class NeuralAgent:
         results = []
         for episode in range(episodes):
             state, info = env.reset()
+
+            print(np.array(info['obstacles']).reshape((-1,)))
+            print(len(np.array(info['obstacles']).reshape((-1,))))
             # Adapt state representation
             state = self._process_state(state)
             state = np.reshape(state, [1, self.state_size])  # Reshape for the network
             done = False
             total_reward = 0
-            iteration = 0
 
             while not done:
                 action = self.choose_action(state)
                 # Adapt action to environment's format
                 env_action = self._process_action(action)
-                print(env_action, iteration)
+                print(env_action)
                 next_state, reward, done, _, _ = env.step(env_action)
                 next_state = self._process_state(next_state)
                 next_state = np.reshape(next_state, [1, self.state_size])
                 self.train(state, action, reward, next_state, done)
                 state = next_state
                 total_reward += reward
-                iteration += 1
 
             print(f"Episode: {episode + 1}, Total Reward: {total_reward}")
             results.append({"episode": episode + 1, "total_reward": total_reward})

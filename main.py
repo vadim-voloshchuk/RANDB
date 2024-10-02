@@ -6,6 +6,9 @@ import logging
 import json
 import os
 
+# Импортируем TensorFlow для настройки GPU
+import tensorflow as tf
+
 import gymnasium as gym
 import redandblue
 
@@ -13,11 +16,7 @@ from models.simple_heuristic import HeuristicAgent
 from models.neural import NeuralAgent
 from models.advanced_neural import AdvancedNeuralAgent
 from models.rnn_agent import RNNNeuralAgent
-
-#from models.q_learning import QLearningAgent
-#import models.q_learning
-
-import numpy as np
+from models.cnn_rnn import CNNRNNNeuralAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -37,6 +36,36 @@ def main(args):
 
     logging.info("Starting Red and Blue environment runner")
     logging.info(f"Arguments: {args}")
+
+    # Настройка TensorFlow для использования GPU, если доступен
+    if args.gpu:
+        # Получаем список доступных GPU
+        gpus = tf.config.list_physical_devices('GPU')
+        logging.info(f"Available GPUs: {gpus}")
+
+        if gpus:
+            try:
+                # Разрешаем использование первой доступной GPU
+                tf.config.set_visible_devices(gpus[0], 'GPU')
+                logical_gpus = tf.config.list_logical_devices('GPU')
+                logging.info(f"Using GPU: {logical_gpus}")
+
+                # Дополнительные оптимизации для H100:
+                # 1. Включаем XLA для компиляции графов TensorFlow
+                tf.config.optimizer.set_jit(True)
+
+                # 2. Устанавливаем смешанную точность (FP16)
+                from tensorflow.keras import mixed_precision
+                policy = mixed_precision.Policy('mixed_float16')
+                mixed_precision.set_global_policy(policy)
+
+            except RuntimeError as e:
+                # Ошибка настройки GPU, используем CPU
+                logging.warning(f"Error setting GPU: {e}. Using CPU.")
+        else:
+            logging.warning("No GPU found. Using CPU.")
+    else:
+        logging.info("GPU usage not requested. Using CPU.")
 
     # Create the environment based on command-line arguments
     env_show = gym.make(
@@ -58,13 +87,8 @@ def main(args):
         agent = AdvancedNeuralAgent()
     elif args.agent == "rnn":
         agent = RNNNeuralAgent()
-    #elif args.agent == "qlearning":
-    #    agent = QLearningAgent(env_show)
-    #    if args.load_q_table:
-    #        agent.load_q_table(args.load_q_table)
-    #    agent.train(episodes=args.episodes)
-    #    if args.save_q_table:
-    #        agent.save_q_table(args.save_q_table)
+    elif args.agent == "cnnrnn":
+        agent = RNNNeuralAgent()
     else:
         raise ValueError(f"Unknown agent type: {args.agent}")
 
@@ -77,16 +101,17 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Red and Blue environment runner with profiling.")
-    parser.add_argument("--agent", type=str, default="neural", choices=["heuristic", "neural", "advanced-neural","rnn"], help="Agent to use (heuristic, neural, advanced-neural, rnn)")
+    parser.add_argument("--agent", type=str, default="cnnrnn", choices=["heuristic", "neural", "advanced-neural","rnn", "cnnrnn"], help="Agent to use (heuristic, neural, advanced-neural, rnn)")
     parser.add_argument("--size", type=int, default=100, help="Size of the environment grid")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second for rendering")
     parser.add_argument("--obstacle_type", type=str, default="random", choices=["random", "preset"], help="Type of obstacles")
     parser.add_argument("--obstacle_percentage", type=float, default=0.05, help="Percentage of obstacles")
     parser.add_argument("--target_behavior", type=str, default="circle", choices=["circle", "random"], help="Target behavior")
     parser.add_argument("--episodes", type=int, default=1000, help="Number of episodes to run (for training agents)")
-    #parser.add_argument("--load_q_table", type=str, help="Path to load Q-table from (for qlearning agent)")
-    #parser.add_argument("--save_q_table", type=str, help="Path to save Q-table to (for qlearning agent)")
     parser.add_argument("--output_dir", type=str, default="output", help="Directory to save logs and results")
+
+    # Добавляем аргумент для использования GPU
+    parser.add_argument("--gpu", action="store_true", help="Use GPU for acceleration (if available)")
 
     args = parser.parse_args()
 

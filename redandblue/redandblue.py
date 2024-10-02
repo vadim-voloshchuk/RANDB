@@ -50,7 +50,7 @@ class RedAndBlue(gym.Env):
     max_obstacles = 7
 
     min_obstacles_len = 1
-    max_obstacles_len = 20
+    max_obstacles_len = 15
 
     view_distance = 10
     view_angle = 90
@@ -130,6 +130,8 @@ class RedAndBlue(gym.Env):
         self.agent_angle = view_angle_action
         new_location = self._agent_location.copy()
 
+        state = self._get_obs()
+
         if move_action != 4:
             direction = self._action_to_direction[move_action]
             new_location = np.clip(self._agent_location + direction, 0, self.size - 1)
@@ -152,7 +154,7 @@ class RedAndBlue(gym.Env):
             self._render_frame()
 
         new_distance = np.linalg.norm(self._agent_location - self._target_location)
-        reward = self._calculate_reward(old_distance, new_distance, agent_wins, target_wins)
+        reward = self._calculate_reward_variant3(old_distance, new_distance, agent_wins, target_wins, action, state)
 
         self.current_round_reward += reward 
         self.current_step_count += 1
@@ -451,34 +453,34 @@ class RedAndBlue(gym.Env):
             reward = distance_change * 2  # Scale the reward/penalty
         return reward
 
-    def _calculate_reward_variant3(self, old_distance, new_distance, terminated, action, state):
+    def _calculate_reward_variant3(self, old_distance, new_distance, agent_wins, target_wins, action, state):
         """
         Reward function variant 3:
-        - Similar to variant 2 but adds a small penalty for each step 
-          to encourage the agent to find the shortest path.
-        - Adds a penalty for colliding with obstacles.
-        - Encourages looking at the target when close.
+        - Encourages the agent to get closer to the target while facing it.
+        - Penalizes collisions with obstacles.
+        - Provides a bonus for being closer and looking at the target. 
         """
         reward = 0
-        if terminated:
-            reward = 100
+
+        if agent_wins:
+            reward += 100  # Large reward for catching the target
+        elif target_wins:
+            reward -= 100  # Large penalty for being caught
         else:
+            # Reward for getting closer
             distance_change = old_distance - new_distance
-            reward = distance_change * 2 - 0.1 # Penalty for each step
+            reward += distance_change 
 
             if self._is_collision(self._agent_location):
-                reward = -10 # Penalty for hitting an obstacle
-                # Encourage trying a different direction 
-                if action == 0: # If moving right, try up or down
-                    reward += 0.1 if self.np_random.choice([1, 3]) == self.choose_action(self._process_state(state)) else 0 
-                elif action == 1: # If moving up, try right or left
-                    reward += 0.1 if self.np_random.choice([0, 2]) == self.choose_action(self._process_state(state)) else 0
-                elif action == 2: # If moving left, try up or down
-                    reward += 0.1 if self.np_random.choice([1, 3]) == self.choose_action(self._process_state(state)) else 0
-                elif action == 3: # If moving down, try right or left
-                    reward += 0.1 if self.np_random.choice([0, 2]) == self.choose_action(self._process_state(state)) else 0
+                reward -= 5 
 
-            if new_distance <= self.view_distance and self._is_facing_target(self._agent_location, self._target_location, self.agent_angle):
-                reward += 2 # Bonus for looking at the target when close
+            delta = self._target_location - self._agent_location
+            desired_angle = (np.degrees(np.arctan2(delta[1], delta[0])) + 360) % 360
+            angle_difference = abs(desired_angle - self.agent_angle) % 360
+            
+            reward -= angle_difference / 360 
+
+            if new_distance <= self.view_distance and angle_difference <= 45:
+                reward += 2 
 
         return reward

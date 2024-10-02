@@ -135,3 +135,54 @@
 2024-09-17 11:44:50,236 - INFO - Arguments: Namespace(agent='rnn', size=20, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=3, output_dir='output')
 2024-09-17 11:45:14,278 - INFO - Finished running Red and Blue environment
 2024-09-17 11:45:14,430 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 12:17:42,373 - INFO - Starting Red and Blue environment runner
+2024-09-17 12:17:42,374 - INFO - Arguments: Namespace(agent='rnn', size=50, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 12:29:52,974 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 12:30:26,286 - INFO - Starting Red and Blue environment runner
+2024-09-17 12:30:26,286 - INFO - Arguments: Namespace(agent='rnn', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 12:30:46,600 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 16:24:16,990 - INFO - Starting Red and Blue environment runner
+2024-09-17 16:24:16,992 - INFO - Arguments: Namespace(agent='rnn', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 16:43:14,156 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 16:46:22,240 - INFO - Starting Red and Blue environment runner
+2024-09-17 16:46:22,240 - INFO - Arguments: Namespace(agent='rnn', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 16:46:23,132 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 16:47:09,666 - INFO - Starting Red and Blue environment runner
+2024-09-17 16:47:09,666 - INFO - Arguments: Namespace(agent='rnn', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 16:55:16,543 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:01:57,143 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:01:57,143 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:02:02,104 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:13:27,587 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:13:27,588 - INFO - Arguments: Namespace(agent='neural', size=15, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:14:18,263 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:14:25,211 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:14:25,211 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:15:03,447 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:18:10,417 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:18:10,417 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:18:10,938 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:18:20,200 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:18:20,200 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:18:23,334 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:19:19,640 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:19:19,686 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:19:20,325 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:20:05,654 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:20:05,654 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:20:20,765 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:20:45,794 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:20:45,794 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:20:52,555 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-09-17 17:22:23,945 - INFO - Starting Red and Blue environment runner
+2024-09-17 17:22:23,945 - INFO - Arguments: Namespace(agent='neural', size=30, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=150, output_dir='output')
+2024-09-17 17:23:37,475 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-10-01 17:02:44,867 - INFO - Starting Red and Blue environment runner
+2024-10-01 17:02:44,867 - INFO - Arguments: Namespace(agent='cnnrnn', size=100, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=1000, output_dir='output')
+2024-10-01 17:04:05,567 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-10-01 17:08:22,275 - INFO - Starting Red and Blue environment runner
+2024-10-01 17:08:22,276 - INFO - Arguments: Namespace(agent='cnnrnn', size=100, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=1000, output_dir='output')
+2024-10-01 17:09:06,186 - INFO - Profiling results saved to: output/profile_stats.txt
+2024-10-01 17:11:41,074 - INFO - Starting Red and Blue environment runner
+2024-10-01 17:11:41,075 - INFO - Arguments: Namespace(agent='cnnrnn', size=100, fps=10, obstacle_type='random', obstacle_percentage=0.05, target_behavior='circle', episodes=1000, output_dir='output')
+2024-10-01 17:17:05,154 - INFO - Profiling results saved to: output/profile_stats.txt

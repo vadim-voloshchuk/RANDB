@@ -40,36 +40,6 @@ def main(args):
     logging.info("Starting Red and Blue environment runner")
     logging.info(f"Arguments: {args}")
 
-    # Настройка TensorFlow для использования GPU, если доступен
-    if args.gpu:
-        # Получаем список доступных GPU
-        gpus = tf.config.list_physical_devices('GPU')
-        logging.info(f"Available GPUs: {gpus}")
-
-        if gpus:
-            try:
-                # Разрешаем использование первой доступной GPU
-                tf.config.set_visible_devices(gpus[0], 'GPU')
-                logical_gpus = tf.config.list_logical_devices('GPU')
-                logging.info(f"Using GPU: {logical_gpus}")
-
-                # Дополнительные оптимизации для H100:
-                # 1. Включаем XLA для компиляции графов TensorFlow
-                tf.config.optimizer.set_jit(True)
-
-                # 2. Устанавливаем смешанную точность (FP16)
-                from tensorflow.keras import mixed_precision
-                policy = mixed_precision.Policy('mixed_float16')
-                mixed_precision.set_global_policy(policy)
-
-            except RuntimeError as e:
-                # Ошибка настройки GPU, используем CPU
-                logging.warning(f"Error setting GPU: {e}. Using CPU.")
-        else:
-            logging.warning("No GPU found. Using CPU.")
-    else:
-        logging.info("GPU usage not requested. Using CPU.")
-
     # Определяем режим рендеринга на основе аргумента --render
     render_mode = 'human' if args.render else None
     logging.info(f"Render mode set to: {render_mode}")

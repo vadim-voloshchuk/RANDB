@@ -212,7 +212,7 @@ class PretentiousAgent:
         return grid
 
     def _process_action(self, move_action, view_action):
-        return {"move": move_action, "view": view_action}
+        return {"move": move_action, "view_action": view_action * 30}
 
     def save_weights(self, filepath):
         torch.save(self.model.state_dict(), filepath)

@@ -4,11 +4,14 @@ import torch.optim as optim
 import numpy as np
 import os
 import json
+import random
+from collections import deque
 
 class PretentiousAgent:
     def __init__(self, grid_size=100, state_size=5, move_actions=5, view_actions=12, 
                  learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, 
-                 epsilon_min=0.01, sequence_length=10, model_path=None):
+                 epsilon_min=0.01, sequence_length=10, replay_buffer_size=10000, 
+                 batch_size=64, model_path=None):
 
         self.grid_size = grid_size
         self.state_size = state_size
@@ -20,32 +23,41 @@ class PretentiousAgent:
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
         self.sequence_length = sequence_length
+        self.replay_buffer = deque(maxlen=replay_buffer_size)
+        self.batch_size = batch_size
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self._build_model().to(self.device)
+        self.target_model = self._build_model().to(self.device)
+        self.update_target_model()  # Copy weights from model to target_model
+
         if model_path is not None and os.path.exists(model_path):
             self.load_weights(model_path)
+
         self.state_sequence = []
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
     def _build_model(self):
         """Builds the CNN-RNN model with two outputs."""
-        state_input = nn.Linear(self.sequence_length * self.state_size, 64).to(self.device)
-        grid_input = nn.Conv2d(1, 32, kernel_size=3, padding=1).to(self.device)
+        state_input = nn.Linear(self.sequence_length * self.state_size, 128).to(self.device)
+        grid_input = nn.Conv2d(1, 64, kernel_size=3, padding=1).to(self.device)
         grid_input = nn.ReLU().to(self.device)
         grid_input = nn.MaxPool2d(kernel_size=2).to(self.device)
         grid_input = nn.Flatten().to(self.device)
 
-        lstm = nn.LSTM(input_size=self.state_size, hidden_size=64, batch_first=True).to(self.device)
+        lstm = nn.LSTM(input_size=self.state_size, hidden_size=128, batch_first=True).to(self.device)
 
-        merged = nn.Linear(64 + grid_input.out_features, 128).to(self.device)
+        merged = nn.Linear(128 + grid_input.out_features, 256).to(self.device)
         merged = nn.ReLU().to(self.device)
 
-        move_output = nn.Linear(128, self.move_actions).to(self.device)
-        view_output = nn.Linear(128, self.view_actions).to(self.device)
+        move_output = nn.Linear(256, self.move_actions).to(self.device)
+        view_output = nn.Linear(256, self.view_actions).to(self.device)
 
         model = nn.ModuleList([state_input, grid_input, lstm, merged, move_output, view_output])
         return model
+
+    def update_target_model(self):
+        self.target_model.load_state_dict(self.model.state_dict())
 
     def choose_action(self, state, grid):
         """Chooses move and view angle actions using the epsilon-greedy policy."""
@@ -60,7 +72,7 @@ class PretentiousAgent:
             if len(self.state_sequence) == self.sequence_length:
                 input_sequence = torch.tensor(self.state_sequence, dtype=torch.float32).unsqueeze(0).to(self.device)
                 grid_input = torch.tensor(grid, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
-                move_q_values, view_q_values = self._predict(input_sequence, grid_input)
+                move_q_values, view_q_values = self._predict(input_sequence, grid_input, use_target=False)
                 move_action = torch.argmax(move_q_values).item()
                 view_action = torch.argmax(view_q_values).item()
             else:
@@ -69,63 +81,62 @@ class PretentiousAgent:
                 padded_sequence = np.concatenate((padding, self.state_sequence))
                 input_sequence = torch.tensor(padded_sequence, dtype=torch.float32).unsqueeze(0).to(self.device)
                 grid_input = torch.tensor(grid, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
-                move_q_values, view_q_values = self._predict(input_sequence, grid_input)
+                move_q_values, view_q_values = self._predict(input_sequence, grid_input, use_target=False)
                 move_action = torch.argmax(move_q_values).item()
                 view_action = torch.argmax(view_q_values).item()
 
         return move_action, view_action
 
-    def _predict(self, state_input, grid_input):
-        state_input = self.model[0](state_input.view(-1, self.sequence_length * self.state_size))
-        grid_input = self.model[1](grid_input)
+    def _predict(self, state_input, grid_input, use_target=False):
+        model = self.target_model if use_target else self.model
+        state_input = model[0](state_input.view(-1, self.sequence_length * self.state_size))
+        grid_input = model[1](grid_input)
         grid_input = grid_input.view(grid_input.size(0), -1)
-        lstm_out, _ = self.model[2](state_input.unsqueeze(0))
+        lstm_out, _ = model[2](state_input.unsqueeze(0))
         merged = torch.cat((lstm_out[:, -1, :], grid_input), dim=1)
-        merged = self.model[3](merged)
-        move_q_values = self.model[4](merged)
-        view_q_values = self.model[5](merged)
+        merged = model[3](merged)
+        move_q_values = model[4](merged)
+        view_q_values = model[5](merged)
         return move_q_values, view_q_values
 
     def train(self, state, move_action, view_action, reward, next_state, done, grid, next_grid):
-        """Trains the agent using separate targets for move and view angle."""
-        target_move = reward
-        target_view = reward
+        """Stores transition in replay buffer and trains the agent if enough samples."""
+        self.replay_buffer.append((state, move_action, view_action, reward, next_state, done, grid, next_grid))
 
-        if not done:
-            next_state_sequence = self.state_sequence + [next_state[0]]
-            if len(next_state_sequence) > self.sequence_length:
-                next_state_sequence.pop(0)
-
-            if len(next_state_sequence) < self.sequence_length:
-                padding_length = self.sequence_length - len(next_state_sequence)
-                padding = np.zeros((padding_length, self.state_size))
-                next_state_sequence = np.concatenate((padding, next_state_sequence))
-
-            next_state_sequence = np.array([next_state_sequence])
-            next_grid_input = np.expand_dims(next_grid, axis=0)
-
-            if len(next_state_sequence[0]) == self.sequence_length:
-                next_move_q_values, next_view_q_values = self._predict(torch.tensor(next_state_sequence, dtype=torch.float32).to(self.device), torch.tensor(next_grid_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device))
-                target_move = reward + self.gamma * torch.max(next_move_q_values).item()
-                target_view = reward + self.gamma * torch.max(next_view_q_values).item()
-
-        if len(self.state_sequence) == self.sequence_length:
-            input_sequence = torch.tensor(self.state_sequence, dtype=torch.float32).unsqueeze(0).to(self.device)
-            grid_input = torch.tensor(grid, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.device)
-            target_move_f, target_view_f = self._predict(input_sequence, grid_input)
-            target_move_f[0][move_action] = target_move
-            target_view_f[0][view_action] = target_view
-            loss = self._calculate_loss(target_move_f, target_view_f, move_action, view_action)
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+        if len(self.replay_buffer) >= self.batch_size:
+            batch = random.sample(self.replay_buffer, self.batch_size)
+            self._train_batch(batch)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def _calculate_loss(self, move_q_values, view_q_values, move_action, view_action):
-        move_loss = nn.MSELoss()(move_q_values, torch.eye(self.move_actions)[move_action].unsqueeze(0).to(self.device))
-        view_loss = nn.MSELoss()(view_q_values, torch.eye(self.view_actions)[view_action].unsqueeze(0).to(self.device))
+    def _train_batch(self, batch):
+        """Train the model on a batch of experiences."""
+        states, move_actions, view_actions, rewards, next_states, dones, grids, next_grids = zip(*batch)
+
+        states = torch.tensor(states, dtype=torch.float32).to(self.device)
+        grids = torch.tensor(grids, dtype=torch.float32).unsqueeze(1).to(self.device)
+        next_states = torch.tensor(next_states, dtype=torch.float32).to(self.device)
+        next_grids = torch.tensor(next_grids, dtype=torch.float32).unsqueeze(1).to(self.device)
+
+        move_q_values, view_q_values = self._predict(states, grids)
+        move_targets = move_q_values.clone().detach()
+        view_targets = view_q_values.clone().detach()
+
+        next_move_q_values, next_view_q_values = self._predict(next_states, next_grids, use_target=True)
+
+        for i in range(self.batch_size):
+            move_targets[i, move_actions[i]] = rewards[i] + (1 - dones[i]) * self.gamma * torch.max(next_move_q_values[i]).item()
+            view_targets[i, view_actions[i]] = rewards[i] + (1 - dones[i]) * self.gamma * torch.max(next_view_q_values[i]).item()
+
+        loss = self._calculate_loss(move_q_values, view_q_values, move_targets, view_targets)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def _calculate_loss(self, move_q_values, view_q_values, move_targets, view_targets):
+        move_loss = nn.MSELoss()(move_q_values, move_targets)
+        view_loss = nn.MSELoss()(view_q_values, view_targets)
         return move_loss + view_loss
 
     def run_model(self, env, output_dir="./", episodes=1000):

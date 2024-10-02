@@ -6,8 +6,6 @@ import random
 import gymnasium as gym
 import redandblue
 
-
-
 class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
@@ -19,6 +17,8 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.criterion = nn.MSELoss()  # Функция потерь
 
     def _build_model(self):
         model = nn.Sequential(
@@ -28,7 +28,6 @@ class DQNAgent:
             nn.ReLU(),
             nn.Linear(24, self.action_size)
         )
-        model.compile(optimizer=optim.Adam(model.parameters(), lr=self.learning_rate), loss='mse')
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -42,6 +41,8 @@ class DQNAgent:
         return torch.argmax(act_values[0]).item()
 
     def replay(self, batch_size):
+        if len(self.memory) < batch_size:
+            return
         minibatch = random.sample(self.memory, batch_size)
         for state, action, reward, next_state, done in minibatch:
             target = reward
@@ -50,7 +51,12 @@ class DQNAgent:
                 target += self.gamma * torch.max(self.model(next_state)).item()
             target_f = self.model(torch.FloatTensor(state).unsqueeze(0))
             target_f[0][action] = target
-            self.model(torch.FloatTensor(state).unsqueeze(0), target_f)
+            
+            # Обучаем модель
+            self.optimizer.zero_grad()  # Обнуляем градиенты
+            loss = self.criterion(target_f, self.model(torch.FloatTensor(state).unsqueeze(0)))
+            loss.backward()  # Обратное распространение
+            self.optimizer.step()  # Шаг оптимизации
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay

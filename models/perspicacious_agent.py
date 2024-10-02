@@ -150,10 +150,12 @@ class PretentiousAgent:
                 next_state = np.reshape(next_state, [1, self.state_size])
                 next_grid = self._create_grid_representation(info["obstacles"])
                 self.train(state, move_action, view_action, reward, next_state, done, grid, next_grid)
+                print(reward, state. next_state)
                 state = next_state
                 grid = next_grid
                 total_reward += reward
                 iteration += 1
+                
 
             if total_reward > 0:
                 wins += 1

@@ -78,24 +78,36 @@ if __name__ == "__main__":
             obstacle_percentage=0.05,
             target_behavior='circle'
         )
-    agent = DQNAgent(state_size=6, action_size=5)  # Убедитесь, что state_size соответствует размеру вашего состояния.
+    agent = DQNAgent(state_size=6, action_size=5)
 
     episodes = 1000
+    total_reward = 0  # Суммарная награда за эпизоды
+    rewards = []  # Список наград для анализа
+
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
-        state = np.concatenate((state['agent'], state['target'], state['agent_angle'], state['target_angle']))  # Объединение всех частей состояния
+        state = np.concatenate((state['agent'], state['target'], state['agent_angle'], state['target_angle']))
         done = False
+        episode_reward = 0  # Награда за текущий эпизод
 
         while not done:
             action = agent.act(state)
-            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # использовать случайный угол
+            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})
             next_state = np.concatenate((next_state['agent'], next_state['target'], next_state['agent_angle'], next_state['target_angle']))
             agent.remember(state, action, reward, next_state, done)
             state = next_state
 
+            episode_reward += reward  # Суммируем награду за эпизод
+
             if len(agent.memory) > 32:
                 agent.replay(32)
 
-        print(f"Episode {e+1}/{episodes} finished")
+            # Логирование информации о ходе обучения после каждого шага
+            print(f"Step: Epsilon: {agent.epsilon:.3f}, Action: {action}, Reward: {reward:.2f}, Episode Reward: {episode_reward:.2f}, Memory Size: {len(agent.memory)}")
+
+        total_reward += episode_reward
+        rewards.append(episode_reward)  # Добавляем награду текущего эпизода
+
+        print(f"Episode {e + 1}/{episodes} finished - Total Episode Reward: {episode_reward:.2f}")
 
     agent.save("dqn_model.pth")  # сохранить модель после обучения

@@ -97,23 +97,11 @@ def main(args):
     elif args.agent == "cnnrnn":
         agent = CNNRNNNeuralAgent()
     elif args.agent == "pretentious_pytorch":  # Добавьте выбор PretentiousAgent
-        state_dim = env_show.observation_space['agent'].shape[0] # Вставьте правильное значение
-        action_dim = env_show.action_space['move'].n  # Вставьте правильное значение
-        agent = PretentiousAgent(env_show, state_dim, action_dim)
-
-    
-        agent = PretentiousAgent(env_show, state_dim, action_dim)
+        agent = PretentiousAgent()
     else:
         raise ValueError(f"Unknown agent type: {args.agent}")
-    
-        # Запуск выбранного агента
-    if args.agent == "pretentious_pytorch":
-        for episode in range(args.episodes):
-            total_reward = agent.run_episode(render=args.render)  # Измените вызов run_model
-            agent.learn()
-            print(f"Episode: {episode + 1}, Total Reward: {total_reward}")
-    else:
-        agent.run_model(env_show, episodes=args.episodes, output_dir=args.output_dir) 
+
+    agent.run_model(env_show, episodes=args.episodes, output_dir=args.output_dir) 
 
     logging.info("Finished running Red and Blue environment")
 

@@ -67,14 +67,18 @@ def main(args):
     else:
         logging.info("GPU usage not requested. Using CPU.")
 
+    # Определяем режим рендеринга на основе аргумента --render
+    render_mode = 'human' if args.render else None
+    logging.info(f"Render mode set to: {render_mode}")
+
     # Create the environment based on command-line arguments
     env_show = gym.make(
-        'RedAndBlue-v0.1', 
-        render_mode='human', 
-        size=args.size, 
+        'RedAndBlue-v0.1',
+        render_mode=render_mode,  # Используем выбранный режим рендеринга
+        size=args.size,
         fps=args.fps,
-        obstacle_type=args.obstacle_type, 
-        obstacle_percentage=args.obstacle_percentage, 
+        obstacle_type=args.obstacle_type,
+        obstacle_percentage=args.obstacle_percentage,
         target_behavior=args.target_behavior
     )
 
@@ -88,7 +92,7 @@ def main(args):
     elif args.agent == "rnn":
         agent = RNNNeuralAgent()
     elif args.agent == "cnnrnn":
-        agent = RNNNeuralAgent()
+        agent = CNNRNNNeuralAgent()
     else:
         raise ValueError(f"Unknown agent type: {args.agent}")
 
@@ -110,8 +114,9 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=1000, help="Number of episodes to run (for training agents)")
     parser.add_argument("--output_dir", type=str, default="output", help="Directory to save logs and results")
 
-    # Добавляем аргумент для использования GPU
+    # Добавляем аргументы для использования GPU и рендеринга
     parser.add_argument("--gpu", action="store_true", help="Use GPU for acceleration (if available)")
+    parser.add_argument("--render", action="store_true", help="Enable visualization (rendering)")
 
     args = parser.parse_args()
 

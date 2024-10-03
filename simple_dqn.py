@@ -113,6 +113,8 @@ if __name__ == "__main__":
 
             if len(agent.memory) > 32:
                 agent.replay(32)
+            
+            print(f"Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")
 
         # Обновляем статистику выигрышей и проигрышей
         if reward == 100:  # Агент поймал цель

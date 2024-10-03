@@ -95,17 +95,18 @@ if __name__ == "__main__":
 
     for e in range(episodes):
         state, info = env.reset()  # сброс среды
+        
         # Объединение состояния агента и цели
         state = np.concatenate((
             state['agent'],           # 2D координаты агента (например, [x, y])
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
-            *[coord for obstacle in info['obstacles'] for coord in obstacle]  # Координаты препятствий
+            np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
         ))
 
-        print(state.shape)
-        
+        print(f"Initial state shape: {state.shape}")
+
         done = False
         episode_reward = 0
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
                 [next_state['distance']],    # Расстояние до цели
-                *[coord for obstacle in info['obstacles'] for coord in obstacle]  # Координаты препятствий
+                np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
             ))
             agent.remember(state, action, reward, next_state, done)
             state = next_state

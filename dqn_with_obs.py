@@ -22,6 +22,7 @@ class DQNAgent:
         self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
+        # Изменение выходного размера модели для угла
         model = nn.Sequential(
             nn.Linear(self.state_size, 24),
             nn.ReLU(),
@@ -81,12 +82,12 @@ if __name__ == "__main__":
         target_behavior='circle'
     )
     
-    # Получаем количество препятствий после их генерации
-    env.reset()  # Необходимо вызвать reset, чтобы инициализировать среду и сгенерировать препятствия
-    obstacles = env._obstacles  # Получаем препятствия
-    obstacle_count = len(obstacles)  # Количество препятствий
+    # Инициализируем среду и получаем информацию о препятствиях
+    state_info = env._get_info()  # Получаем информацию
+    obstacles = state_info["obstacles"]  # Получаем список препятствий
+    obstacle_count = len(obstacles)  # Считаем количество препятствий
 
-    # Изменение размера состояния: добавление информации о препятствиях
+    # Изменение размера состояния
     state_size = 6 + obstacle_count * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
     agent = DQNAgent(state_size=state_size, action_size=5)
 
@@ -99,13 +100,17 @@ if __name__ == "__main__":
 
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
-        # Объединение состояния агента и цели
+        state_info = env._get_info()  # Получаем информацию о состоянии
+        obstacles = state_info["obstacles"]  # Получаем список препятствий
+        distance = state_info["distance"]  # Получаем расстояние до цели
+
+        # Объединение состояния агента и цели с информацией о препятствиях
         state = np.concatenate((
-            state['agent'],           # 2D координаты агента (например, [x, y])
-            state['target'],          # 2D координаты цели (например, [x, y])
-            state['agent_angle'],     # Угол агента (одномерный массив)
-            state['target_angle'],     # Угол цели (одномерный массив)
-            np.array(obstacles).flatten()  # Плоский массив координат препятствий
+            state['agent'],           # 2D координаты агента
+            state['target'],          # 2D координаты цели
+            state['agent_angle'],     # Угол агента
+            state['target_angle'],     # Угол цели
+            np.array(obstacles).flatten()  # Используем координаты препятствий
         ))
         done = False
         episode_reward = 0
@@ -114,13 +119,15 @@ if __name__ == "__main__":
             action, predicted_angle = agent.act(state)  # Получаем действие и предсказанный угол
             next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
             
-            # Объединение состояния для следующего шага
+            # Получаем следующую информацию о состоянии
+            next_state_info = env._get_info()
+            next_obstacles = next_state_info["obstacles"]  # Обновляем список препятствий
             next_state = np.concatenate((
                 next_state['agent'],         # 2D координаты агента
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
-                np.array(env._obstacles).flatten()  # Плоский массив координат препятствий
+                np.array(next_obstacles).flatten()  # Используем координаты препятствий
             ))
             agent.remember(state, action, reward, next_state, done)
             state = next_state

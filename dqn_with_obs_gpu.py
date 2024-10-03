@@ -36,37 +36,31 @@ class DQNAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def act(self, state):
-        # Преобразуем состояние в тензор и добавляем размерность
-        state_tensor = torch.FloatTensor(state).to(self.device).unsqueeze(0)  # Добавляем размерность (1, state_size)
-        
-        act_values = self.model(state_tensor)  # Получаем предсказания
-        
-        action = torch.argmax(act_values[:-1]).item()  # действия без угла (изменено на одинарный индекс)
-        predicted_angle = act_values[-1].item()  # предсказание угла (изменено на одинарный индекс)
-        
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size), np.random.uniform(-180, 180)  # случайный угол
+        state = torch.FloatTensor(state).to(self.device).unsqueeze(0)  # Перемещение состояния на GPU
+        act_values = self.model(state)
+        action = torch.argmax(act_values[0, :-1]).item()  # действия без угла
+        predicted_angle = act_values[0, -1].item()  # предсказание угла
         return action, predicted_angle
-
-
 
     def replay(self, batch_size):
         if len(self.memory) < batch_size:
             return
         minibatch = random.sample(self.memory, batch_size)
-        
-        states = torch.FloatTensor([m[0] for m in minibatch]).to(self.device)  # Пакет состояний
-        actions = torch.tensor([m[1] for m in minibatch]).to(self.device)
-        rewards = torch.tensor([m[2] for m in minibatch]).to(self.device)
-        next_states = torch.FloatTensor([m[3] for m in minibatch]).to(self.device)
-        dones = torch.tensor([m[4] for m in minibatch]).to(self.device)
-
-        targets = rewards + (self.gamma * torch.max(self.model(next_states), dim=1)[0] * (1 - dones))
-        target_f = self.model(states)
-        target_f[torch.arange(batch_size), actions] = targets  # Обновите целевые значения для действий
-
-        self.optimizer.zero_grad()
-        loss = self.criterion(target_f, self.model(states))
-        loss.backward()
-        self.optimizer.step()
+        for state, action, reward, next_state, done in minibatch:
+            target = reward
+            if not done:
+                next_state_tensor = torch.FloatTensor(next_state).to(self.device).unsqueeze(0)  # Перемещение next_state на GPU
+                target += self.gamma * torch.max(self.model(next_state_tensor)).item()
+            target_f = self.model(torch.FloatTensor(state).to(self.device).unsqueeze(0))  # Перемещение состояния на GPU
+            target_f[0][action] = target
+            
+            # Обучаем модель
+            self.optimizer.zero_grad()  # Обнуляем градиенты
+            loss = self.criterion(target_f, self.model(torch.FloatTensor(state).to(self.device).unsqueeze(0)))  # Перемещение состояния на GPU
+            loss.backward()  # Обратное распространение
+            self.optimizer.step()  # Шаг оптимизации
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -80,7 +74,7 @@ class DQNAgent:
 if __name__ == "__main__":
     env = gym.make(
         'RedAndBlue-v0.1',
-        render_mode=None,  # Убедитесь, что рендеринг отключен
+        render_mode=None,
         size=100,
         fps=10,
         obstacle_type='random',
@@ -151,8 +145,8 @@ if __name__ == "__main__":
             state = next_state
             episode_reward += reward
 
-            if len(agent.memory) > 256:  # Увеличение размера батча
-                agent.replay(256)
+            if len(agent.memory) > 128:
+                agent.replay(128)
             
             print(f"Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")
 

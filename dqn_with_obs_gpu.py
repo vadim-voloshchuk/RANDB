@@ -35,12 +35,17 @@ class DQNAgent:
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, states):
-        states_tensor = torch.FloatTensor(states).to(self.device)  # Пакет состояний
-        act_values = self.model(states_tensor)  # Получаем предсказания для всех состояний
-        actions = torch.argmax(act_values[:, :-1], dim=1).cpu().numpy()  # действия без угла
-        predicted_angles = act_values[:, -1].cpu().numpy()  # предсказание угла
-        return actions, predicted_angles
+    def act(self, state):
+        # Преобразуем состояние в тензор и добавляем размерность
+        state_tensor = torch.FloatTensor(state).to(self.device).unsqueeze(0)  # Добавляем размерность (1, state_size)
+        
+        act_values = self.model(state_tensor)  # Получаем предсказания
+        
+        action = torch.argmax(act_values[:-1]).item()  # действия без угла (изменено на одинарный индекс)
+        predicted_angle = act_values[-1].item()  # предсказание угла (изменено на одинарный индекс)
+        
+        return action, predicted_angle
+
 
 
     def replay(self, batch_size):

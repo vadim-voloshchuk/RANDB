@@ -67,7 +67,6 @@ class DQNAgent:
     def save(self, name):
         torch.save(self.model.state_dict(), name)
 
-# Пример использования агента
 if __name__ == "__main__":
     env = gym.make(
             'RedAndBlue-v0.1',
@@ -88,25 +87,25 @@ if __name__ == "__main__":
 
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
-        # Убедимся, что углы являются одномерными массивами
+        # Объединение состояния агента и цели
         state = np.concatenate((
-            state['agent'],               # 2D координаты агента
-            state['target'],              # 2D координаты цели
-            np.array([state['agent_angle']]),  # Угол агента как массив
-            np.array([state['target_angle']])  # Угол цели как массив
+            state['agent'],           # 2D координаты агента (например, [x, y])
+            state['target'],          # 2D координаты цели (например, [x, y])
+            state['agent_angle'],     # Угол агента (одномерный массив)
+            state['target_angle']     # Угол цели (одномерный массив)
         ))
         done = False
         episode_reward = 0
 
         while not done:
             action = agent.act(state)
-            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # использовать случайный угол
-            # Убедимся, что углы в следующем состоянии также преобразованы
+            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # Использовать случайный угол
+            # Объединение состояния для следующего шага
             next_state = np.concatenate((
-                next_state['agent'],               # 2D координаты агента
-                next_state['target'],              # 2D координаты цели
-                np.array([next_state['agent_angle']]),  # Угол агента как массив
-                np.array([next_state['target_angle']])  # Угол цели как массив
+                next_state['agent'],         # 2D координаты агента
+                next_state['target'],        # 2D координаты цели
+                next_state['agent_angle'],   # Угол агента
+                next_state['target_angle']   # Угол цели
             ))
             agent.remember(state, action, reward, next_state, done)
             state = next_state
@@ -118,9 +117,9 @@ if __name__ == "__main__":
         # Обновляем статистику выигрышей и проигрышей
         if reward == 100:  # Агент поймал цель
             win_count += 1
-        else:  # Агент проиграл
+        elif reward == -100:  # Агент проиграл
             loss_count += 1
 
         print(f"Episode {e+1}/{episodes} finished. Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")
 
-    agent.save("dqn_model.pth")  # сохранить модель после обучения
+    agent.save("dqn_model.pth")  # Сохранить модель после обучения

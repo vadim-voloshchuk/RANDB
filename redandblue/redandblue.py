@@ -469,18 +469,21 @@ class RedAndBlue(gym.Env):
         else:
             # Reward for getting closer
             distance_change = old_distance - new_distance
-            reward += distance_change 
+            reward += distance_change * 2  # Увеличиваем значимость сближения
 
-            # if self._is_collision(self._agent_location):
-            #     reward -= 5 
-
+            # Penalize for not facing the target
             delta = self._target_location - self._agent_location
             desired_angle = (np.degrees(np.arctan2(delta[1], delta[0])) + 360) % 360
             angle_difference = abs(desired_angle - self.agent_angle) % 360
-            
-            reward -= angle_difference / 360 
 
+            reward -= (angle_difference / 360) * 5  # Усиливаем наказание за угол отклонения
+
+            # Bonus for being close and facing the target
             if new_distance <= self.view_distance and angle_difference <= 45:
-                reward += 2 
+                reward += 5  # Увеличен бонус
+
+            # Optionally return the penalty for collisions
+            if self._is_collision(self._agent_location):
+                reward -= 5  # Штраф за столкновения
 
         return reward

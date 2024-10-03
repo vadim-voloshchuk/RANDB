@@ -79,22 +79,25 @@ if __name__ == "__main__":
             target_behavior='circle'
         )
     
-    agent = DQNAgent(state_size=6, action_size=5)  # Убедитесь, что state_size соответствует размеру вашего состояния.
-    
+    # Изменение: увеличиваем размер состояния до 7 (положение и угол агента, положение и угол цели)
+    agent = DQNAgent(state_size=7, action_size=5)
+
     episodes = 1000
     win_count = 0
     loss_count = 0
 
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
-        state = np.concatenate((state['agent'], state['target'], state['agent_angle'], state['target_angle']))
+        # Изменение: добавляем угол поворота цели (синего) в состояние
+        state = np.concatenate((state['agent'], state['target'], [state['agent_angle']], [state['target_angle']]))
         done = False
         episode_reward = 0
 
         while not done:
             action = agent.act(state)
             next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # использовать случайный угол
-            next_state = np.concatenate((next_state['agent'], next_state['target'], next_state['agent_angle'], next_state['target_angle']))
+            # Изменение: добавляем угол поворота цели (синего) в следующее состояние
+            next_state = np.concatenate((next_state['agent'], next_state['target'], [next_state['agent_angle']], [next_state['target_angle']]))
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             episode_reward += reward

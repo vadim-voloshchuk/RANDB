@@ -124,10 +124,8 @@ if __name__ == "__main__":
 
         while not done:
             action, predicted_angle = agent.act(state)  # Получаем действие и предсказанный угол
-            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
+            next_state, reward, done, _, next_state_info = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
             
-            # Получаем следующую информацию о состоянии
-            next_state_info = env._get_info()
             next_obstacles = next_state_info["obstacles"]  # Обновляем список препятствий
 
             # Объединение состояния для следующего шага

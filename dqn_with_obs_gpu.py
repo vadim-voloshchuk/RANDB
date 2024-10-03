@@ -48,22 +48,24 @@ class DQNAgent:
         if len(self.memory) < batch_size:
             return
         minibatch = random.sample(self.memory, batch_size)
-        for state, action, reward, next_state, done in minibatch:
+        state_tensors = torch.FloatTensor([x[0] for x in minibatch]).to(self.device)  # Создание батча состояний
+        next_state_tensors = torch.FloatTensor([x[3] for x in minibatch]).to(self.device)  # Создание батча следующих состояний
+        targets = []
+
+        for i, (state, action, reward, next_state, done) in enumerate(minibatch):
             target = reward
             if not done:
-                next_state_tensor = torch.FloatTensor(next_state).to(self.device).unsqueeze(0)  # Перемещение next_state на GPU
-                target += self.gamma * torch.max(self.model(next_state_tensor)).item()
-            target_f = self.model(torch.FloatTensor(state).to(self.device).unsqueeze(0))  # Перемещение состояния на GPU
-            target_f[0][action] = target
-            
-            # Обучаем модель
-            self.optimizer.zero_grad()  # Обнуляем градиенты
-            loss = self.criterion(target_f, self.model(torch.FloatTensor(state).to(self.device).unsqueeze(0)))  # Перемещение состояния на GPU
-            loss.backward()  # Обратное распространение
-            self.optimizer.step()  # Шаг оптимизации
+                target += self.gamma * torch.max(self.model(next_state_tensors[i])).item()
+            target_f = self.model(state_tensors[i])
+            target_f[action] = target
+            targets.append(target_f)
 
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+        # Обучаем модель
+        self.optimizer.zero_grad()  # Обнуляем градиенты
+        loss = self.criterion(torch.stack(targets), self.model(state_tensors))  # Используем батч состояний
+        loss.backward()  # Обратное распространение
+        self.optimizer.step()  # Шаг оптимизации
+
 
     def load(self, name):
         self.model.load_state_dict(torch.load(name))

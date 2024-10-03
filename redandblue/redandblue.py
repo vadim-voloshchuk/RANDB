@@ -471,8 +471,8 @@ class RedAndBlue(gym.Env):
             distance_change = old_distance - new_distance
             reward += distance_change 
 
-            if self._is_collision(self._agent_location):
-                reward -= 5 
+            # if self._is_collision(self._agent_location):
+            #     reward -= 5 
 
             delta = self._target_location - self._agent_location
             desired_angle = (np.degrees(np.arctan2(delta[1], delta[0])) + 360) % 360

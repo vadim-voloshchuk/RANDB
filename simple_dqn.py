@@ -5,6 +5,7 @@ import numpy as np
 import random
 import gymnasium as gym
 import redandblue
+import pandas as pd
 
 class DQNAgent:
     def __init__(self, state_size, action_size):
@@ -81,9 +82,12 @@ if __name__ == "__main__":
     # Размер состояния - 6 (положение и угол агента, положение и угол цели)
     agent = DQNAgent(state_size=6, action_size=5)
 
-    episodes = 1000
+    episodes = 250
     win_count = 0
     loss_count = 0
+
+    # Создание списка для хранения истории
+    history = []
 
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
@@ -122,6 +126,21 @@ if __name__ == "__main__":
         elif reward == -100:  # Агент проиграл
             loss_count += 1
 
+        # Добавление текущего эпизода в историю
+        history.append({
+            "episode": e + 1,
+            "reward": episode_reward,
+            "wins": win_count,
+            "losses": loss_count,
+            "epsilon": agent.epsilon
+        })
+
         print(f"Episode {e+1}/{episodes} finished. Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")
+
+    # Сохранение истории в DataFrame
+    df = pd.DataFrame(history)
+
+    # Сохранение таблицы в CSV файл
+    df.to_csv("training_history.csv", index=False)
 
     agent.save("dqn_model.pth")  # Сохранить модель после обучения

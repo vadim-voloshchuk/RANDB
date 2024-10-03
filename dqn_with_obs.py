@@ -81,8 +81,13 @@ if __name__ == "__main__":
         target_behavior='circle'
     )
     
+    # Получаем количество препятствий после их генерации
+    env.reset()  # Необходимо вызвать reset, чтобы инициализировать среду и сгенерировать препятствия
+    obstacles = env._obstacles  # Получаем препятствия
+    obstacle_count = len(obstacles)  # Количество препятствий
+
     # Изменение размера состояния: добавление информации о препятствиях
-    state_size = 6 + env._max_obstacles * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
+    state_size = 6 + obstacle_count * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -100,7 +105,7 @@ if __name__ == "__main__":
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
-            np.array(env._obstacles).flatten()  # Плоский массив координат препятствий
+            np.array(obstacles).flatten()  # Плоский массив координат препятствий
         ))
         done = False
         episode_reward = 0

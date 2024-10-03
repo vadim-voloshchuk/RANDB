@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # Размер состояния - 6 (положение и угол агента, положение и угол цели)
     agent = DQNAgent(state_size=6, action_size=5)
 
-    episodes = 250
+    episodes = 5000
     win_count = 0
     loss_count = 0
 

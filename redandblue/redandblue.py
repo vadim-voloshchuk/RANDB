@@ -469,7 +469,7 @@ class RedAndBlue(gym.Env):
         else:
             # Reward for getting closer
             distance_change = old_distance - new_distance
-            reward += distance_change * 2  # Увеличиваем значимость сближения
+            reward += distance_change * 5  # Увеличиваем значимость сближения
 
             # Penalize for not facing the target
             delta = self._target_location - self._agent_location

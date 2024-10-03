@@ -22,7 +22,6 @@ class DQNAgent:
         self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
-        # Изменение выходного размера модели для угла
         model = nn.Sequential(
             nn.Linear(self.state_size, 24),
             nn.ReLU(),
@@ -71,6 +70,13 @@ class DQNAgent:
     def save(self, name):
         torch.save(self.model.state_dict(), name)
 
+def get_obstacle_info(obstacles):
+    """Получает координаты всех препятствий и приводит к необходимому формату."""
+    obstacle_coords = []
+    for (x, y) in obstacles:
+        obstacle_coords.extend([x, y])  # Добавляем координаты в плоский список
+    return np.array(obstacle_coords)
+
 if __name__ == "__main__":
     env = gym.make(
         'RedAndBlue-v0.1',
@@ -82,13 +88,10 @@ if __name__ == "__main__":
         target_behavior='circle'
     )
     
-    # Инициализируем среду и получаем информацию о препятствиях
-    state_info = env._get_info()  # Получаем информацию
-    obstacles = state_info["obstacles"]  # Получаем список препятствий
-    obstacle_count = len(obstacles)  # Считаем количество препятствий
 
-    # Изменение размера состояния
-    state_size = 6 + obstacle_count * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
+    # Устанавливаем максимальное количество препятствий
+    max_obstacles = 7  # Или какое значение вы используете для вашего максимума
+    state_size = 6 + max_obstacles * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -99,10 +102,9 @@ if __name__ == "__main__":
     history = []
 
     for e in range(episodes):
-        state, _ = env.reset()  # сброс среды
-        state_info = env._get_info()  # Получаем информацию о состоянии
-        obstacles = state_info["obstacles"]  # Получаем список препятствий
-        distance = state_info["distance"]  # Получаем расстояние до цели
+        state, info = env.reset()  # сброс среды
+        obstacles = info["obstacles"]  # Получаем список препятствий
+        distance = info["distance"]  # Получаем расстояние до цели
 
         # Объединение состояния агента и цели с информацией о препятствиях
         state = np.concatenate((
@@ -110,8 +112,13 @@ if __name__ == "__main__":
             state['target'],          # 2D координаты цели
             state['agent_angle'],     # Угол агента
             state['target_angle'],     # Угол цели
-            np.array(obstacles).flatten()  # Используем координаты препятствий
+            get_obstacle_info(obstacles)  # Используем координаты препятствий
         ))
+
+        # Если препятствий меньше максимума, добавляем пустые значения
+        while len(obstacles) < max_obstacles:
+            state = np.concatenate((state, np.zeros(2)))  # Добавляем пустые координаты для отсутствующих препятствий
+
         done = False
         episode_reward = 0
 
@@ -122,13 +129,20 @@ if __name__ == "__main__":
             # Получаем следующую информацию о состоянии
             next_state_info = env._get_info()
             next_obstacles = next_state_info["obstacles"]  # Обновляем список препятствий
+
+            # Объединение состояния для следующего шага
             next_state = np.concatenate((
                 next_state['agent'],         # 2D координаты агента
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
-                np.array(next_obstacles).flatten()  # Используем координаты препятствий
+                get_obstacle_info(next_obstacles)  # Используем координаты препятствий
             ))
+
+            # Если препятствий меньше максимума, добавляем пустые значения
+            while len(next_obstacles) < max_obstacles:
+                next_state = np.concatenate((next_state, np.zeros(2)))  # Добавляем пустые координаты для отсутствующих препятствий
+
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             episode_reward += reward

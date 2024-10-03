@@ -22,6 +22,7 @@ class DQNAgent:
         self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
+        # Изменение выходного размера модели для угла
         model = nn.Sequential(
             nn.Linear(self.state_size, 24),
             nn.ReLU(),
@@ -70,13 +71,6 @@ class DQNAgent:
     def save(self, name):
         torch.save(self.model.state_dict(), name)
 
-def get_obstacle_info(obstacles):
-    """Получает координаты всех препятствий и приводит к необходимому формату."""
-    obstacle_coords = []
-    for (x, y) in obstacles:
-        obstacle_coords.extend([x, y])  # Добавляем координаты в плоский список
-    return np.array(obstacle_coords)
-
 if __name__ == "__main__":
     env = gym.make(
         'RedAndBlue-v0.1',
@@ -88,10 +82,8 @@ if __name__ == "__main__":
         target_behavior='circle'
     )
     
-
-    # Устанавливаем максимальное количество препятствий
-    max_obstacles = 7  # Или какое значение вы используете для вашего максимума
-    state_size = 6 + max_obstacles * 2  # 6 для положения и углов, 2 для каждого препятствия (x, y)
+    # Определяем state_size и action_size
+    state_size = 6 + 1 + (7 * 15 * 15 * 2)  # Размер состояния
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -102,45 +94,33 @@ if __name__ == "__main__":
     history = []
 
     for e in range(episodes):
-        state, info = env.reset()  # сброс среды
-        obstacles = info["obstacles"]  # Получаем список препятствий
-        distance = info["distance"]  # Получаем расстояние до цели
-
-        # Объединение состояния агента и цели с информацией о препятствиях
+        state, _ = env.reset()  # сброс среды
+        # Объединение состояния агента и цели
         state = np.concatenate((
-            state['agent'],           # 2D координаты агента
-            state['target'],          # 2D координаты цели
-            state['agent_angle'],     # Угол агента
-            state['target_angle'],     # Угол цели
-            get_obstacle_info(obstacles)  # Используем координаты препятствий
+            state['agent'],           # 2D координаты агента (например, [x, y])
+            state['target'],          # 2D координаты цели (например, [x, y])
+            state['agent_angle'],     # Угол агента (одномерный массив)
+            state['target_angle'],     # Угол цели (одномерный массив)
+            [state['distance']],      # Расстояние до цели
+            *[coord for obstacle in state['obstacles'] for coord in obstacle]  # Координаты препятствий
         ))
-
-        # Если препятствий меньше максимума, добавляем пустые значения
-        while len(obstacles) < max_obstacles:
-            state = np.concatenate((state, np.zeros(2)))  # Добавляем пустые координаты для отсутствующих препятствий
-
+        
         done = False
         episode_reward = 0
 
         while not done:
             action, predicted_angle = agent.act(state)  # Получаем действие и предсказанный угол
-            next_state, reward, done, _, next_state_info = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
+            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
             
-            next_obstacles = next_state_info["obstacles"]  # Обновляем список препятствий
-
             # Объединение состояния для следующего шага
             next_state = np.concatenate((
                 next_state['agent'],         # 2D координаты агента
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
-                get_obstacle_info(next_obstacles)  # Используем координаты препятствий
+                [next_state['distance']],    # Расстояние до цели
+                *[coord for obstacle in next_state['obstacles'] for coord in obstacle]  # Координаты препятствий
             ))
-
-            # Если препятствий меньше максимума, добавляем пустые значения
-            while len(next_obstacles) < max_obstacles:
-                next_state = np.concatenate((next_state, np.zeros(2)))  # Добавляем пустые координаты для отсутствующих препятствий
-
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             episode_reward += reward

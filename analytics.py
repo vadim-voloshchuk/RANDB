@@ -9,7 +9,7 @@ print(data.head())
 
 # Отображение графика награды по эпизодам
 plt.figure(figsize=(12, 6))
-plt.plot(data['Episode'], data['Reward'], label='Reward per Episode')
+plt.plot(data['episode'], data['reward'], label='Reward per Episode')
 plt.xlabel('Episode')
 plt.ylabel('Reward')
 plt.title('Training Reward over Episodes')
@@ -19,8 +19,8 @@ plt.show()
 
 # Отображение выигрышей и проигрышей
 plt.figure(figsize=(12, 6))
-plt.plot(data['Episode'], data['Wins'], label='Wins')
-plt.plot(data['Episode'], data['Losses'], label='Losses')
+plt.plot(data['episode'], data['wins'], label='Wins')
+plt.plot(data['episode'], data['losses'], label='Losses')
 plt.xlabel('Episode')
 plt.ylabel('Count')
 plt.title('Wins and Losses over Episodes')

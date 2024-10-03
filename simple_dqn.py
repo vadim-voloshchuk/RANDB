@@ -22,12 +22,13 @@ class DQNAgent:
         self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
+        # Изменение выходного размера модели для угла
         model = nn.Sequential(
             nn.Linear(self.state_size, 24),
             nn.ReLU(),
             nn.Linear(24, 24),
             nn.ReLU(),
-            nn.Linear(24, self.action_size)
+            nn.Linear(24, self.action_size + 1)  # +1 для предсказания угла
         )
         return model
 
@@ -36,10 +37,12 @@ class DQNAgent:
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
+            return random.randrange(self.action_size), np.random.uniform(-180, 180)  # случайный угол
         state = torch.FloatTensor(state).unsqueeze(0)
         act_values = self.model(state)
-        return torch.argmax(act_values[0]).item()
+        action = torch.argmax(act_values[0, :-1]).item()  # действия без угла
+        predicted_angle = act_values[0, -1].item()  # предсказание угла
+        return action, predicted_angle
 
     def replay(self, batch_size):
         if len(self.memory) < batch_size:
@@ -48,8 +51,8 @@ class DQNAgent:
         for state, action, reward, next_state, done in minibatch:
             target = reward
             if not done:
-                next_state = torch.FloatTensor(next_state).unsqueeze(0)
-                target += self.gamma * torch.max(self.model(next_state)).item()
+                next_state_tensor = torch.FloatTensor(next_state).unsqueeze(0)
+                target += self.gamma * torch.max(self.model(next_state_tensor)).item()
             target_f = self.model(torch.FloatTensor(state).unsqueeze(0))
             target_f[0][action] = target
             
@@ -70,14 +73,14 @@ class DQNAgent:
 
 if __name__ == "__main__":
     env = gym.make(
-            'RedAndBlue-v0.1',
-            render_mode=None,
-            size=100,
-            fps=10,
-            obstacle_type='random',
-            obstacle_percentage=0.05,
-            target_behavior='circle'
-        )
+        'RedAndBlue-v0.1',
+        render_mode=None,
+        size=100,
+        fps=10,
+        obstacle_type='random',
+        obstacle_percentage=0.05,
+        target_behavior='circle'
+    )
     
     # Размер состояния - 6 (положение и угол агента, положение и угол цели)
     agent = DQNAgent(state_size=6, action_size=5)
@@ -102,14 +105,15 @@ if __name__ == "__main__":
         episode_reward = 0
 
         while not done:
-            action = agent.act(state)
-            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # Использовать случайный угол
+            action, predicted_angle = agent.act(state)  # Получаем действие и предсказанный угол
+            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
+            
             # Объединение состояния для следующего шага
             next_state = np.concatenate((
                 next_state['agent'],         # 2D координаты агента
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
-                next_state['target_angle']   # Угол цели
+                next_state['target_angle']    # Угол цели
             ))
             agent.remember(state, action, reward, next_state, done)
             state = next_state

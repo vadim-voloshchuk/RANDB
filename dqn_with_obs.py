@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
     
     # Определяем state_size и action_size
-    state_size = 6 + 1 + (7 * 15 * 15 * 2)  # Размер состояния
+    state_size = 6 + (7 * 15 * 15 * 2)  # Размер состояния
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -101,7 +101,6 @@ if __name__ == "__main__":
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
-            [state['distance']],      # Расстояние до цели
             *[coord for obstacle in state['obstacles'] for coord in obstacle]  # Координаты препятствий
         ))
 

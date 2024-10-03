@@ -89,7 +89,7 @@ if __name__ == "__main__":
     for e in range(episodes):
         state, _ = env.reset()  # сброс среды
         # Изменение: добавляем угол поворота цели (синего) в состояние
-        state = np.concatenate((state['agent'], state['target'], [state['agent_angle']], [state['target_angle']]))
+        state = np.concatenate((state['agent'], state['target'], [state['agent_angle']], [state['target_angle']]), axis=0)
         done = False
         episode_reward = 0
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             action = agent.act(state)
             next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': agent.epsilon})  # использовать случайный угол
             # Изменение: добавляем угол поворота цели (синего) в следующее состояние
-            next_state = np.concatenate((next_state['agent'], next_state['target'], [next_state['agent_angle']], [next_state['target_angle']]))
+            next_state = np.concatenate((next_state['agent'], next_state['target'], [next_state['agent_angle']], [next_state['target_angle']]), axis=0)
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             episode_reward += reward

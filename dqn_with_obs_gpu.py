@@ -36,11 +36,12 @@ class DQNAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def act(self, states):
-        states_tensor = torch.FloatTensor(states).to(self.device)
-        act_values = self.model(states_tensor)
+        states_tensor = torch.FloatTensor(states).to(self.device)  # Пакет состояний
+        act_values = self.model(states_tensor)  # Получаем предсказания для всех состояний
         actions = torch.argmax(act_values[:, :-1], dim=1).cpu().numpy()  # действия без угла
         predicted_angles = act_values[:, -1].cpu().numpy()  # предсказание угла
         return actions, predicted_angles
+
 
     def replay(self, batch_size):
         if len(self.memory) < batch_size:

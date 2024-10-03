@@ -22,13 +22,12 @@ class DQNAgent:
         self.criterion = nn.MSELoss()  # Loss function
 
     def _build_model(self):
-        # Изменение выходного размера модели для угла
         model = nn.Sequential(
-            nn.Linear(self.state_size, 24),
+            nn.Linear(self.state_size, 128),  # Увеличьте размер для лучшей выразительности
             nn.ReLU(),
-            nn.Linear(24, 24),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(24, self.action_size + 1)  # +1 для предсказания угла
+            nn.Linear(64, self.action_size + 1)  # +1 для предсказания угла
         )
         return model
 
@@ -83,7 +82,8 @@ if __name__ == "__main__":
     )
     
     # Определяем state_size и action_size
-    state_size = 7 + (7 * 15 * 15 * 2)  # Размер состояния
+    obstacle_grid_size = 100 * 100  # Размер матрицы препятствий
+    state_size = 7 + obstacle_grid_size  # Размер состояния
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -97,13 +97,22 @@ if __name__ == "__main__":
         state, info = env.reset()  # сброс среды
         
         # Объединение состояния агента и цели
+        obstacle_grid = np.zeros((100, 100))  # Создаем матрицу 100x100
+        for obstacle in info['obstacles']:  # Предполагаем, что obstacles - это список координат
+            x, y = obstacle  # Предполагаем, что obstacle - это кортеж (x, y)
+            if 0 <= x < 100 and 0 <= y < 100:  # Проверяем границы
+                obstacle_grid[x, y] = 1  # Обозначаем наличие препятствия
+
+        # Плоское представление матрицы
+        obstacle_flattened = obstacle_grid.flatten()
+
         state = np.concatenate((
             state['agent'],           # 2D координаты агента (например, [x, y])
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
             [info['distance']],    # Расстояние до цели
-            np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
+            obstacle_flattened  # Плоское представление матрицы препятствий
         ))
 
         print(f"Initial state shape: {state.shape}")
@@ -116,14 +125,21 @@ if __name__ == "__main__":
             next_state, reward, done, _, info = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
             
             # Объединение состояния для следующего шага
+            obstacle_grid = np.zeros((100, 100))  # Создаем матрицу 100x100
+            for obstacle in info['obstacles']:  # Предполагаем, что obstacles - это список координат
+                x, y = obstacle  # Предполагаем, что obstacle - это кортеж (x, y)
+                if 0 <= x < 100 and 0 <= y < 100:  # Проверяем границы
+                    obstacle_grid[x, y] = 1  # Обозначаем наличие препятствия
+
             next_state = np.concatenate((
                 next_state['agent'],         # 2D координаты агента
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
                 [info['distance']],    # Расстояние до цели
-                np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
+                obstacle_grid.flatten()  # Плоское представление матрицы препятствий
             ))
+
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             episode_reward += reward

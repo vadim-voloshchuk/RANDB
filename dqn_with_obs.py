@@ -104,6 +104,8 @@ if __name__ == "__main__":
             [state['distance']],      # Расстояние до цели
             *[coord for obstacle in state['obstacles'] for coord in obstacle]  # Координаты препятствий
         ))
+
+        print(state.shape)
         
         done = False
         episode_reward = 0

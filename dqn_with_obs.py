@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
     
     # Определяем state_size и action_size
-    state_size = 6 + (7 * 15 * 15 * 2)  # Размер состояния
+    state_size = 7 + (7 * 15 * 15 * 2)  # Размер состояния
     agent = DQNAgent(state_size=state_size, action_size=5)
 
     episodes = 5000
@@ -102,6 +102,7 @@ if __name__ == "__main__":
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
+            [info['distance']],    # Расстояние до цели
             np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
         ))
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
                 next_state['target'],        # 2D координаты цели
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
-                [next_state['distance']],    # Расстояние до цели
+                [info['distance']],    # Расстояние до цели
                 np.array(info['obstacles']).flatten()  # Координаты препятствий, выравнивание в 1D
             ))
             agent.remember(state, action, reward, next_state, done)

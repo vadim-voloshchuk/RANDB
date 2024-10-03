@@ -94,14 +94,14 @@ if __name__ == "__main__":
     history = []
 
     for e in range(episodes):
-        state, _ = env.reset()  # сброс среды
+        state, info = env.reset()  # сброс среды
         # Объединение состояния агента и цели
         state = np.concatenate((
             state['agent'],           # 2D координаты агента (например, [x, y])
             state['target'],          # 2D координаты цели (например, [x, y])
             state['agent_angle'],     # Угол агента (одномерный массив)
             state['target_angle'],     # Угол цели (одномерный массив)
-            *[coord for obstacle in state['obstacles'] for coord in obstacle]  # Координаты препятствий
+            *[coord for obstacle in info['obstacles'] for coord in obstacle]  # Координаты препятствий
         ))
 
         print(state.shape)
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
         while not done:
             action, predicted_angle = agent.act(state)  # Получаем действие и предсказанный угол
-            next_state, reward, done, _, _ = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
+            next_state, reward, done, _, info = env.step({'move': action, 'view_angle': predicted_angle})  # Используем предсказанный угол
             
             # Объединение состояния для следующего шага
             next_state = np.concatenate((
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                 next_state['agent_angle'],   # Угол агента
                 next_state['target_angle'],   # Угол цели
                 [next_state['distance']],    # Расстояние до цели
-                *[coord for obstacle in next_state['obstacles'] for coord in obstacle]  # Координаты препятствий
+                *[coord for obstacle in info['obstacles'] for coord in obstacle]  # Координаты препятствий
             ))
             agent.remember(state, action, reward, next_state, done)
             state = next_state

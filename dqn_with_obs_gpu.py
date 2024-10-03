@@ -145,8 +145,8 @@ if __name__ == "__main__":
             state = next_state
             episode_reward += reward
 
-            if len(agent.memory) > 128:
-                agent.replay(128)
+            if len(agent.memory) > 256:
+                agent.replay(256)
             
             print(f"Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")
 

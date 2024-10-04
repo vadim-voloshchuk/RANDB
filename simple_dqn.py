@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # Размер состояния - 6 (положение и угол агента, положение и угол цели)
     agent = DQNAgent(state_size=6, action_size=5)
 
-    episodes = 5000
+    episodes = 3500
     win_count = 0
     loss_count = 0
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
             state = next_state
             episode_reward += reward
 
-            if len(agent.memory) > 32:
+            if len(agent.memory) > 64:
                 agent.replay(32)
             
             print(f"Reward: {episode_reward}. Wins: {win_count}, Losses: {loss_count}")

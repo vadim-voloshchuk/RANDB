@@ -89,7 +89,7 @@ if __name__ == "__main__":
     state_size = 7 + obstacle_grid_size  # Размер состояния
     agent = DQNAgent(state_size=state_size, action_size=5)
 
-    episodes = 5000
+    episodes = 200
     win_count = 0
     loss_count = 0
 
@@ -175,4 +175,4 @@ if __name__ == "__main__":
     # Сохранение таблицы в CSV файл
     df.to_csv("training_history.csv", index=False)
 
-    agent.save("dqn_model.pth")  # Сохранить модель после обучения
+    agent.save("dqn_model_obs_max.pth")  # Сохранить модель после обучения

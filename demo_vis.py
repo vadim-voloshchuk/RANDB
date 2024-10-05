@@ -23,7 +23,6 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_dim, 128)
         self.fc2 = nn.Linear(128, 128)
-        # В выходном слое два выхода: один для действия, другой для угла
         self.action_head = nn.Linear(128, output_dim)
         self.angle_head = nn.Linear(128, angle_dim)
 
@@ -71,62 +70,25 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.update_target_freq = 1000
         self.steps_done = 0
-        self.scaler = GradScaler()  # AMP
+        self.scaler = GradScaler('cuda')  # AMP
 
         self.rewards_history = []  # История вознаграждений для графика
         self.wins_history = []  # Счёт выигрышей
         self.losses_history = []  # Счёт проигрышей
         self.lock = threading.Lock()  # Для синхронизации доступа к историям
-        self.plot_thread = threading.Thread(target=self._live_plot, daemon=True)
-        self.plot_thread.start()
-
-    def _live_plot(self):
-        plt.ion()  # Включить интерактивный режим
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-
-        # График для наград
-        rewards_line, = ax1.plot([], label='Current Rewards', color='blue')
-        ax1.set_xlabel("Episodes")
-        ax1.set_ylabel("Rewards")
-        ax1.set_title("Current Rewards")
-        ax1.legend()
-        
-        # График для выигрышей и проигрышей
-        wins_line, = ax2.plot([], label='Wins', color='green')
-        losses_line, = ax2.plot([], label='Losses', color='red')
-        ax2.set_xlabel("Episodes")
-        ax2.set_ylabel("Count")
-        ax2.set_title("Wins and Losses")
-        ax2.legend()
-
-        while True:
-            with self.lock:  # Защита доступа к истории
-                if self.rewards_history:  # Обновление графика наград
-                    rewards_line.set_ydata(self.rewards_history)
-                    rewards_line.set_xdata(range(len(self.rewards_history)))
-                    ax1.relim()  # Пересчитать границы осей
-                    ax1.autoscale_view()  # Автоматическое масштабирование осей
-
-                if self.wins_history or self.losses_history:  # Обновление графика выигрышей и проигрышей
-                    wins_line.set_ydata(self.wins_history)
-                    wins_line.set_xdata(range(len(self.wins_history)))
-                    losses_line.set_ydata(self.losses_history)
-                    losses_line.set_xdata(range(len(self.losses_history)))
-                    ax2.relim()  # Пересчитать границы осей
-                    ax2.autoscale_view()  # Автоматическое масштабирование осей
-
-            plt.draw()
-            plt.pause(0.1)  # Пауза для обновления графиков
 
     def select_action(self, state):
         if random.random() < self.epsilon:
-            return self.env.action_space["move"].sample()
+            action = self.env.action_space["move"].sample()
+            predicted_angle = random.randint(0, 360)  # Случайный угол для инициализации
         else:
             state = torch.FloatTensor(state).unsqueeze(0).to(device)
             with torch.no_grad():
-                action, angle = self.q_network(state)
-                predicted_angle = angle.argmax().item()
-                return action.argmax().item(), predicted_angle
+                action_values, angle_values = self.q_network(state)
+                action = action_values.argmax().item()
+                predicted_angle = angle_values.argmax().item()  # Получаем индекс угла
+
+        return action, predicted_angle
 
     def train_step(self):
         if len(self.replay_buffer) < self.batch_size:

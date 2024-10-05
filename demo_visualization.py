@@ -8,16 +8,16 @@ from collections import deque
 import gymnasium as gym
 import pygame
 import redandblue
-from torch.cuda.amp import autocast, GradScaler  # For using AMP
+from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
 import threading
 import matplotlib
 
 matplotlib.use('TkAgg')
 
-# Using GPU
+# Использование GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# DQN Network with AMP support
+# Сеть для DQN с поддержкой AMP
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
@@ -46,11 +46,11 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-# DQN Agent
+# Агент DQN
 class DQNAgent:
     def __init__(self, env, buffer_size=100000, batch_size=256, gamma=0.99, lr=1e-3):
         self.env = env
-        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Viewing angle and target
+        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Угол обзора и цель
         self.action_dim = env.action_space["move"].n
 
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
@@ -69,38 +69,50 @@ class DQNAgent:
         self.steps_done = 0
         self.scaler = GradScaler()  # AMP
 
-        self.rewards_history = []  # Rewards history for plotting
-        self.wins_history = []  # Wins history for plotting
-        self.losses_history = []  # Losses history for plotting
-        self.lock = threading.Lock()  # For synchronizing access to histories
-        self.plot_thread = threading.Thread(target=self._live_plot_rewards, daemon=True)
+        self.rewards_history = []  # История вознаграждений для графика
+        self.wins_history = []  # Счёт выигрышей
+        self.losses_history = []  # Счёт проигрышей
+        self.lock = threading.Lock()  # Для синхронизации доступа к историям
+        self.plot_thread = threading.Thread(target=self._live_plot, daemon=True)
         self.plot_thread.start()
 
-    def _live_plot_rewards(self):
-        plt.ion()  # Enable interactive mode
-        fig, ax = plt.subplots()
-        rewards_line, = ax.plot([], label='Total Rewards')
-        wins_line, = ax.plot([], label='Wins', color='green')
-        losses_line, = ax.plot([], label='Losses', color='red')
-        ax.set_xlabel("Episodes")
-        ax.set_ylabel("Counts")
-        ax.set_title("Training Progress")
-        ax.legend()
+    def _live_plot(self):
+        plt.ion()  # Включить интерактивный режим
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+        # График для наград
+        rewards_line, = ax1.plot([], label='Current Rewards', color='blue')
+        ax1.set_xlabel("Episodes")
+        ax1.set_ylabel("Rewards")
+        ax1.set_title("Current Rewards")
+        ax1.legend()
+        
+        # График для выигрышей и проигрышей
+        wins_line, = ax2.plot([], label='Wins', color='green')
+        losses_line, = ax2.plot([], label='Losses', color='red')
+        ax2.set_xlabel("Episodes")
+        ax2.set_ylabel("Count")
+        ax2.set_title("Wins and Losses")
+        ax2.legend()
 
         while True:
-            with self.lock:  # Protect access to history
-                if self.rewards_history or self.wins_history or self.losses_history:  # Update if there is data
+            with self.lock:  # Защита доступа к истории
+                if self.rewards_history:  # Обновление графика наград
                     rewards_line.set_ydata(self.rewards_history)
                     rewards_line.set_xdata(range(len(self.rewards_history)))
+                    ax1.relim()  # Пересчитать границы осей
+                    ax1.autoscale_view()  # Автоматическое масштабирование осей
+
+                if self.wins_history or self.losses_history:  # Обновление графика выигрышей и проигрышей
                     wins_line.set_ydata(self.wins_history)
                     wins_line.set_xdata(range(len(self.wins_history)))
                     losses_line.set_ydata(self.losses_history)
                     losses_line.set_xdata(range(len(self.losses_history)))
-                    ax.relim()  # Recalculate axis limits
-                    ax.autoscale_view()  # Auto scale axes
+                    ax2.relim()  # Пересчитать границы осей
+                    ax2.autoscale_view()  # Автоматическое масштабирование осей
 
             plt.draw()
-            plt.pause(0.1)  # Pause for plot update
+            plt.pause(0.1)  # Пауза для обновления графиков
 
     def select_action(self, state):
         if random.random() < self.epsilon:
@@ -159,11 +171,11 @@ class DQNAgent:
 
                 self.replay_buffer.push(self._flatten_state(state), action, reward, self._flatten_state(next_state), done)
                 state = next_state
-                episode_reward += reward
+                episode_reward = reward
 
                 self.train_step()
 
-            # Update win/loss counts
+            # Обновление счёта выигрыш/проигрыш
             if episode_reward == 100:
                 episode_wins = 1
             elif episode_reward == -100:
@@ -174,9 +186,9 @@ class DQNAgent:
                 self.wins_history.append(episode_wins)
                 self.losses_history.append(episode_losses)
 
-            # Debug output
+            # Отладочный вывод
             print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
-            print(f"Current Rewards History: {self.rewards_history}")  # Check rewards history
+            print(f"Current Rewards History: {self.rewards_history}")  # Проверяем историю наград
 
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
@@ -189,7 +201,7 @@ class DQNAgent:
         target_angle = state["target_angle"]
         return np.concatenate([agent, agent_angle, target_angle])
 
-# Initialize environment and agent
+# Инициализация среды и агента
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 
 agent = DQNAgent(env)

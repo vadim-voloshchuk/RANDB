@@ -1,16 +1,33 @@
 import torch
+import torch.nn as nn
+
 import numpy as np
 import gymnasium as gym
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import threading
-from demo_vis import DQN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Инициализация среды
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 
+# Сеть для DQN с поддержкой AMP
+class DQN(nn.Module):
+    def __init__(self, input_dim, output_dim, angle_dim=1):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.action_head = nn.Linear(128, output_dim)
+        self.angle_head = nn.Linear(128, angle_dim)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        action = self.action_head(x)
+        angle = self.angle_head(x)
+        return action, angle
+    
 # Агент DQN (как ранее)
 class DQNAgent:
     def __init__(self, env):
@@ -20,7 +37,7 @@ class DQNAgent:
 
         # Загрузка модели
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
-        self.q_network.load_state_dict(torch.load("dqn_weights_episode_500.pth"))  # Укажите нужный файл с весами
+        self.q_network.load_state_dict(torch.load("dqn_weights_episode_400.pth"))  # Укажите нужный файл с весами
         self.q_network.eval()
 
         # Статистика

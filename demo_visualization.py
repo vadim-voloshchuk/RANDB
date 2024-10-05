@@ -8,11 +8,12 @@ from collections import deque
 import gymnasium as gym
 import pygame
 import redandblue
+from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
 
 # Использование GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Сеть для DQN
+# Сеть для DQN с поддержкой AMP
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
@@ -43,9 +44,9 @@ class ReplayBuffer:
 
 # Агент DQN
 class DQNAgent:
-    def __init__(self, env, buffer_size=10000, batch_size=64, gamma=0.99, lr=1e-3):
+    def __init__(self, env, buffer_size=100000, batch_size=256, gamma=0.99, lr=1e-3):
         self.env = env
-        self.state_dim = env.observation_space["agent"].shape[0] + 2 # Добавим угол обзора агента и цели
+        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Угол обзора и цель
         self.action_dim = env.action_space["move"].n
 
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
@@ -62,10 +63,11 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.update_target_freq = 1000
         self.steps_done = 0
+        self.scaler = GradScaler()  # AMP
 
     def select_action(self, state):
         if random.random() < self.epsilon:
-            return self.env.action_space["move"].sample()  # Random action
+            return self.env.action_space["move"].sample()
         else:
             state = torch.FloatTensor(state).unsqueeze(0).to(device)
             with torch.no_grad():
@@ -74,7 +76,7 @@ class DQNAgent:
     def train_step(self):
         if len(self.replay_buffer) < self.batch_size:
             return
-        
+
         states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
 
         states = torch.FloatTensor(states).to(device)
@@ -83,18 +85,20 @@ class DQNAgent:
         next_states = torch.FloatTensor(next_states).to(device)
         dones = torch.FloatTensor(dones).to(device)
 
-        q_values = self.q_network(states)
-        next_q_values = self.target_network(next_states)
+        with autocast():
+            q_values = self.q_network(states)
+            next_q_values = self.target_network(next_states)
 
-        q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-        next_q_value = next_q_values.max(1)[0]
-        expected_q_value = rewards + self.gamma * next_q_value * (1 - dones)
+            q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+            next_q_value = next_q_values.max(1)[0]
+            expected_q_value = rewards + self.gamma * next_q_value * (1 - dones)
 
-        loss = (q_value - expected_q_value.detach()).pow(2).mean()
+            loss = (q_value - expected_q_value.detach()).pow(2).mean()
 
         self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -111,12 +115,10 @@ class DQNAgent:
             episode_reward = 0
 
             while not done:
-                # Визуализируем среду
                 self.env.render()
-                
                 action = self.select_action(self._flatten_state(state))
                 next_state, reward, done, _, _ = self.env.step({"move": action, "view_angle": random.randint(0, 360)})
-                
+
                 self.replay_buffer.push(self._flatten_state(state), action, reward, self._flatten_state(next_state), done)
                 state = next_state
                 episode_reward += reward
@@ -128,7 +130,6 @@ class DQNAgent:
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
 
-            # Реалтайм-график
             if episode % 50 == 0:
                 self._plot_rewards(rewards_history)
 

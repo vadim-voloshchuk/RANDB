@@ -8,7 +8,6 @@ from demo_vis import DQN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 # Инициализация среды
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 

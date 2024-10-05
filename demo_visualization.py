@@ -78,7 +78,6 @@ class DQNAgent:
         with self.lock:
             self.rewards_history = rewards
 
-    # Метод для обновления графика в фоновом режиме с блокировкой
     def _live_plot_rewards(self):
         plt.ion()  # Включить интерактивный режим
         fig, ax = plt.subplots()
@@ -161,6 +160,10 @@ class DQNAgent:
 
             with self.lock:
                 self.rewards_history.append(episode_reward)
+
+            # Отладочный вывод
+            print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
+            print(f"Current Rewards History: {self.rewards_history}")  # Проверяем историю вознаграждений
 
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")

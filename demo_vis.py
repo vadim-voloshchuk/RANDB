@@ -19,29 +19,33 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Сеть для DQN с поддержкой AMP
 class DQN(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, angle_dim=1):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_dim, 128)
         self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, output_dim)
+        # В выходном слое два выхода: один для действия, другой для угла
+        self.action_head = nn.Linear(128, output_dim)
+        self.angle_head = nn.Linear(128, angle_dim)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        return self.fc3(x)
+        action = self.action_head(x)
+        angle = self.angle_head(x)
+        return action, angle
 
 # Replay Buffer
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
 
-    def push(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
+    def push(self, state, action, reward, next_state, done, next_angle):
+        self.buffer.append((state, action, reward, next_state, done, next_angle))
 
     def sample(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
-        return np.array(states), actions, rewards, np.array(next_states), dones
+        states, actions, rewards, next_states, dones, next_angles = zip(*batch)
+        return np.array(states), actions, rewards, np.array(next_states), dones, next_angles
 
     def __len__(self):
         return len(self.buffer)
@@ -120,23 +124,26 @@ class DQNAgent:
         else:
             state = torch.FloatTensor(state).unsqueeze(0).to(device)
             with torch.no_grad():
-                return self.q_network(state).argmax().item()
+                action, angle = self.q_network(state)
+                predicted_angle = angle.argmax().item()
+                return action.argmax().item(), predicted_angle
 
     def train_step(self):
         if len(self.replay_buffer) < self.batch_size:
             return
 
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones, next_angles = self.replay_buffer.sample(self.batch_size)
 
         states = torch.FloatTensor(states).to(device)
         actions = torch.LongTensor(actions).to(device)
         rewards = torch.FloatTensor(rewards).to(device)
         next_states = torch.FloatTensor(next_states).to(device)
         dones = torch.FloatTensor(dones).to(device)
+        next_angles = torch.FloatTensor(next_angles).to(device)
 
         with autocast():
-            q_values = self.q_network(states)
-            next_q_values = self.target_network(next_states)
+            q_values, angles = self.q_network(states)
+            next_q_values, next_angles = self.target_network(next_states)
 
             q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
             next_q_value = next_q_values.max(1)[0]
@@ -170,10 +177,10 @@ class DQNAgent:
             
             while not done:
                 self.env.render()
-                action = self.select_action(self._flatten_state(state))
-                next_state, reward, done, _, _ = self.env.step({"move": action, "view_angle": random.randint(0, 360)})
+                action, predicted_angle = self.select_action(self._flatten_state(state))
+                next_state, reward, done, _, _ = self.env.step({"move": action, "view_angle": predicted_angle})
 
-                self.replay_buffer.push(self._flatten_state(state), action, reward, self._flatten_state(next_state), done)
+                self.replay_buffer.push(self._flatten_state(state), action, reward, self._flatten_state(next_state), done, predicted_angle)
                 state = next_state
                 episode_reward = reward
 

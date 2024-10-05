@@ -68,9 +68,35 @@ class DQNAgent:
         self.scaler = GradScaler()  # AMP
 
 
-        self.rewards_history = []  # Переместим сюда для доступа в потоке
+        self.rewards_history = []  # История вознаграждений для графика
+        self.lock = threading.Lock()  # Для синхронизации доступа к rewards_history
         self.plot_thread = threading.Thread(target=self._live_plot_rewards, daemon=True)
         self.plot_thread.start()
+
+    # Модифицированный метод _plot_rewards для обновления истории с блокировкой
+    def _plot_rewards(self, rewards):
+        with self.lock:
+            self.rewards_history = rewards
+
+    # Метод для обновления графика в фоновом режиме с блокировкой
+    def _live_plot_rewards(self):
+        plt.ion()  # Включить интерактивный режим
+        fig, ax = plt.subplots()
+        rewards_line, = ax.plot([], [])
+        ax.set_xlabel("Episodes")
+        ax.set_ylabel("Rewards")
+        ax.set_title("Training Progress")
+
+        while True:
+            with self.lock:  # Защищаем доступ к rewards_history
+                if self.rewards_history:  # Обновлять график, если есть данные
+                    rewards_line.set_ydata(self.rewards_history)
+                    rewards_line.set_xdata(range(len(self.rewards_history)))
+                    ax.relim()  # Пересчитать границы осей
+                    ax.autoscale_view()  # Автоматическое масштабирование осей
+
+            plt.draw()
+            plt.pause(0.1)  # Пауза для обновления графика
 
 
     def select_action(self, state):
@@ -115,27 +141,6 @@ class DQNAgent:
         if self.steps_done % self.update_target_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
-    # Модифицированный метод _plot_rewards
-    def _plot_rewards(self, rewards):
-        self.rewards_history = rewards
-
-    # Метод для обновления графика в фоновом режиме
-    def _live_plot_rewards(self):
-        plt.ion()  # Включить интерактивный режим
-        fig, ax = plt.subplots()
-        rewards_line, = ax.plot(self.rewards_history)
-        ax.set_xlabel("Episodes")
-        ax.set_ylabel("Rewards")
-        ax.set_title("Training Progress")
-
-        while True:
-            if self.rewards_history:  # Обновлять график, если есть данные
-                rewards_line.set_ydata(self.rewards_history)
-                rewards_line.set_xdata(range(len(self.rewards_history)))
-                ax.relim()
-                ax.autoscale_view()
-                plt.draw()
-                plt.pause(0.1)  # Пауза для обновления графика
 
     def train(self, num_episodes=1000):
         for episode in range(num_episodes):
@@ -154,7 +159,8 @@ class DQNAgent:
 
                 self.train_step()
 
-            self.rewards_history.append(episode_reward)
+            with self.lock:
+                self.rewards_history.append(episode_reward)
 
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")

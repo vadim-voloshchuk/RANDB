@@ -8,17 +8,16 @@ from collections import deque
 import gymnasium as gym
 import pygame
 import redandblue
-from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
+from torch.cuda.amp import autocast, GradScaler  # For using AMP
 import threading
 import matplotlib
 
 matplotlib.use('TkAgg')
 
-
-# Использование GPU
+# Using GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Сеть для DQN с поддержкой AMP
+# DQN Network with AMP support
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
@@ -47,11 +46,11 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-# Агент DQN
+# DQN Agent
 class DQNAgent:
     def __init__(self, env, buffer_size=100000, batch_size=256, gamma=0.99, lr=1e-3):
         self.env = env
-        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Угол обзора и цель
+        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Viewing angle and target
         self.action_dim = env.action_space["move"].n
 
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
@@ -70,36 +69,38 @@ class DQNAgent:
         self.steps_done = 0
         self.scaler = GradScaler()  # AMP
 
-
-        self.rewards_history = []  # История вознаграждений для графика
-        self.lock = threading.Lock()  # Для синхронизации доступа к rewards_history
+        self.rewards_history = []  # Rewards history for plotting
+        self.wins_history = []  # Wins history for plotting
+        self.losses_history = []  # Losses history for plotting
+        self.lock = threading.Lock()  # For synchronizing access to histories
         self.plot_thread = threading.Thread(target=self._live_plot_rewards, daemon=True)
         self.plot_thread.start()
 
-    # Модифицированный метод _plot_rewards для обновления истории с блокировкой
-    def _plot_rewards(self, rewards):
-        with self.lock:
-            self.rewards_history = rewards
-
     def _live_plot_rewards(self):
-        plt.ion()  # Включить интерактивный режим
+        plt.ion()  # Enable interactive mode
         fig, ax = plt.subplots()
-        rewards_line, = ax.plot([], [])
+        rewards_line, = ax.plot([], label='Total Rewards')
+        wins_line, = ax.plot([], label='Wins', color='green')
+        losses_line, = ax.plot([], label='Losses', color='red')
         ax.set_xlabel("Episodes")
-        ax.set_ylabel("Rewards")
+        ax.set_ylabel("Counts")
         ax.set_title("Training Progress")
+        ax.legend()
 
         while True:
-            with self.lock:  # Защищаем доступ к rewards_history
-                if self.rewards_history:  # Обновлять график, если есть данные
+            with self.lock:  # Protect access to history
+                if self.rewards_history or self.wins_history or self.losses_history:  # Update if there is data
                     rewards_line.set_ydata(self.rewards_history)
                     rewards_line.set_xdata(range(len(self.rewards_history)))
-                    ax.relim()  # Пересчитать границы осей
-                    ax.autoscale_view()  # Автоматическое масштабирование осей
+                    wins_line.set_ydata(self.wins_history)
+                    wins_line.set_xdata(range(len(self.wins_history)))
+                    losses_line.set_ydata(self.losses_history)
+                    losses_line.set_xdata(range(len(self.losses_history)))
+                    ax.relim()  # Recalculate axis limits
+                    ax.autoscale_view()  # Auto scale axes
 
             plt.draw()
-            plt.pause(0.1)  # Пауза для обновления графика
-
+            plt.pause(0.1)  # Pause for plot update
 
     def select_action(self, state):
         if random.random() < self.epsilon:
@@ -143,12 +144,13 @@ class DQNAgent:
         if self.steps_done % self.update_target_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
-
     def train(self, num_episodes=1000):
         for episode in range(num_episodes):
             state, _ = self.env.reset()
             done = False
             episode_reward = 0
+            episode_wins = 0
+            episode_losses = 0
 
             while not done:
                 self.env.render()
@@ -161,18 +163,25 @@ class DQNAgent:
 
                 self.train_step()
 
+            # Update win/loss counts
+            if episode_reward == 100:
+                episode_wins = 1
+            elif episode_reward == -100:
+                episode_losses = 1
+
             with self.lock:
                 self.rewards_history.append(episode_reward)
+                self.wins_history.append(episode_wins)
+                self.losses_history.append(episode_losses)
 
-            # Отладочный вывод
+            # Debug output
             print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
-            print(f"Current Rewards History: {self.rewards_history}")  # Проверяем историю вознаграждений
+            print(f"Current Rewards History: {self.rewards_history}")  # Check rewards history
 
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
 
         self.env.close()
-
 
     def _flatten_state(self, state):
         agent = state["agent"]
@@ -180,7 +189,7 @@ class DQNAgent:
         target_angle = state["target_angle"]
         return np.concatenate([agent, agent_angle, target_angle])
 
-# Инициализация среды и агента
+# Initialize environment and agent
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 
 agent = DQNAgent(env)

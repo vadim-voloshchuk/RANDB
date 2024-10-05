@@ -157,12 +157,13 @@ class DQNAgent:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
     def train(self, num_episodes=1000):
+        episode_wins = 0
+        episode_losses = 0
         for episode in range(num_episodes):
             state, _ = self.env.reset()
             done = False
             episode_reward = 0
-            episode_wins = 0
-            episode_losses = 0
+            
 
             while not done:
                 self.env.render()
@@ -177,9 +178,9 @@ class DQNAgent:
 
             # Обновление счёта выигрыш/проигрыш
             if episode_reward == 100:
-                episode_wins = 1
+                episode_wins += 1
             elif episode_reward == -100:
-                episode_losses = 1
+                episode_losses += 1
 
             with self.lock:
                 self.rewards_history.append(episode_reward)

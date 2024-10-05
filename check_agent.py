@@ -39,7 +39,7 @@ class DQNAgent:
 
         # Загрузка модели
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
-        self.q_network.load_state_dict(torch.load("dqn_weights_episode_400.pth"), weights_only=True)  # Укажите нужный файл с весами
+        self.q_network.load_state_dict(torch.load("dqn_weights_episode_500.pth"), strict=False)
         self.q_network.eval()
 
         # Статистика

@@ -9,9 +9,10 @@ import gymnasium as gym
 import pygame
 import redandblue
 from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
-import threading
 import matplotlib
 import multiprocessing
+import os
+import threading
 
 matplotlib.use('TkAgg')
 
@@ -160,18 +161,71 @@ class DQNAgent:
         target_angle = state["target_angle"]
         return np.concatenate([agent, agent_angle, target_angle])
 
-def train_agent_in_env(env_name, num_episodes):
+def train_agent_in_env(env_name, num_episodes, agent_id):
     env = gym.make(env_name, render_mode=None, size=50, target_behavior='circle')
     agent = DQNAgent(env)
+
+    # Запускаем поток для обновления графика в реальном времени
+    plot_thread = threading.Thread(target=update_plot, args=(agent_id, agent))
+    plot_thread.start()
+
     agent.train(num_episodes=num_episodes)
 
-if __name__ == "__main__":
-    num_processes = 4  # Количество процессов
-    num_episodes = 500  # Количество эпизодов для каждого агента
+    # Завершаем поток после завершения обучения
+    plot_thread.join()
 
+def update_plot(agent_id, agent):
+    plt.ion()  # Включаем интерактивный режим
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Настройки графиков
+    axs[0].set_title(f'Agent {agent_id} - Wins/Losses')
+    axs[0].set_xlabel('Episodes')
+    axs[0].set_ylabel('Count')
+    
+    axs[1].set_title(f'Agent {agent_id} - Rewards')
+    axs[1].set_xlabel('Episodes')
+    axs[1].set_ylabel('Reward')
+
+    while True:
+        # Проверяем, завершилось ли обучение
+        if len(agent.rewards_history) == 0:
+            continue
+
+        # Очищаем графики
+        axs[0].cla()
+        axs[1].cla()
+
+        # Отрисовка графиков выигрышей и проигрышей
+        axs[0].plot(agent.wins_history, label='Wins', color='g')
+        axs[0].plot(agent.losses_history, label='Losses', color='r')
+        axs[0].legend()
+
+        # Отрисовка графиков наград
+        axs[1].plot(agent.rewards_history, label='Rewards', color='b')
+        axs[1].legend()
+
+        plt.tight_layout()
+        plt.draw()
+        plt.pause(0.1)  # Пауза для обновления графиков
+
+        # Если обучение завершено, выходим из цикла
+        if len(agent.wins_history) >= agent.train_steps:
+            break
+
+if __name__ == "__main__":
+    # Конфигурация агентов
+    agents_config = [
+        {"env_name": "RedAndBlue-v0.1", "num_episodes": 500, "buffer_size": 100000, "batch_size": 256, "gamma": 0.99, "lr": 1e-3},
+        {"env_name": "RedAndBlue-v0.1", "num_episodes": 500, "buffer_size": 200000, "batch_size": 128, "gamma": 0.95, "lr": 5e-4},
+        {"env_name": "RedAndBlue-v0.1", "num_episodes": 500, "buffer_size": 150000, "batch_size": 64, "gamma": 0.90, "lr": 1e-3},
+        {"env_name": "RedAndBlue-v0.1", "num_episodes": 500, "buffer_size": 250000, "batch_size": 512, "gamma": 0.99, "lr": 1e-4},
+    ]
+
+    num_processes = len(agents_config)  # Количество процессов
     processes = []
-    for _ in range(num_processes):
-        p = multiprocessing.Process(target=train_agent_in_env, args=("RedAndBlue-v0.1", num_episodes))
+    for agent_id, config in enumerate(agents_config):
+        p = multiprocessing.Process(target=train_agent_in_env, args=(config["env_name"], config["num_episodes"], agent_id))
         processes.append(p)
         p.start()
 

@@ -70,7 +70,8 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.update_target_freq = 1000
         self.steps_done = 0
-        self.scaler = GradScaler('cuda')  # AMP
+        self.scaler = GradScaler()  # Default initialization
+
 
         self.rewards_history = []  # История вознаграждений для графика
         self.wins_history = []  # Счёт выигрышей
@@ -104,7 +105,7 @@ class DQNAgent:
         next_angles = torch.FloatTensor(next_angles).to(device)
 
         # Use the updated autocast context manager
-        with torch.amp.autocast(device_type='cuda'):
+        with torch.amp.autocast():
             q_values, angles = self.q_network(states)
             next_q_values, next_angles = self.target_network(next_states)
 
@@ -125,6 +126,7 @@ class DQNAgent:
         self.steps_done += 1
         if self.steps_done % self.update_target_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
+
 
     def save_weights(self, episode):
         torch.save(self.q_network.state_dict(), f"dqn_weights_episode_{episode}.pth")

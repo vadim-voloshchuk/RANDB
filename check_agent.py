@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
-
 import numpy as np
 import gymnasium as gym
+import matplotlib
+matplotlib.use('TkAgg')  # Убедитесь, что используете правильный бэкенд
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import threading
-
 import redandblue
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -106,7 +105,6 @@ def update_plot(frame):
         plt.legend()
         plt.xlim(0, len(agent.wins_history) + 10)  # Устанавливаем пределы по оси X
         plt.ylim(0, max(max(agent.wins_history), max(agent.losses_history), 10))  # Устанавливаем пределы по оси Y
-        plt.pause(0.1)  # Пауза для обновления графика
 
 # Инициализация агента
 agent = DQNAgent(env)
@@ -123,7 +121,8 @@ while evaluation_thread.is_alive():
     update_plot(None)  # Обновление графика
     plt.pause(0.1)  # Пауза для обновления графика
 
-plt.show()  # Показ графика после завершения
+# Показ графика после завершения
+plt.show()
 
 # Ожидание завершения потока оценки
 evaluation_thread.join()

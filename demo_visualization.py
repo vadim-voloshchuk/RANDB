@@ -9,6 +9,8 @@ import gymnasium as gym
 import pygame
 import redandblue
 from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
+import threading
+
 
 # Использование GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,6 +67,12 @@ class DQNAgent:
         self.steps_done = 0
         self.scaler = GradScaler()  # AMP
 
+
+        self.rewards_history = []  # Переместим сюда для доступа в потоке
+        self.plot_thread = threading.Thread(target=self._live_plot_rewards, daemon=True)
+        self.plot_thread.start()
+
+
     def select_action(self, state):
         if random.random() < self.epsilon:
             return self.env.action_space["move"].sample()
@@ -107,8 +115,29 @@ class DQNAgent:
         if self.steps_done % self.update_target_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
+    # Модифицированный метод _plot_rewards
+    def _plot_rewards(self, rewards):
+        self.rewards_history = rewards
+
+    # Метод для обновления графика в фоновом режиме
+    def _live_plot_rewards(self):
+        plt.ion()  # Включить интерактивный режим
+        fig, ax = plt.subplots()
+        rewards_line, = ax.plot(self.rewards_history)
+        ax.set_xlabel("Episodes")
+        ax.set_ylabel("Rewards")
+        ax.set_title("Training Progress")
+
+        while True:
+            if self.rewards_history:  # Обновлять график, если есть данные
+                rewards_line.set_ydata(self.rewards_history)
+                rewards_line.set_xdata(range(len(self.rewards_history)))
+                ax.relim()
+                ax.autoscale_view()
+                plt.draw()
+                plt.pause(0.1)  # Пауза для обновления графика
+
     def train(self, num_episodes=1000):
-        rewards_history = []
         for episode in range(num_episodes):
             state, _ = self.env.reset()
             done = False
@@ -125,28 +154,19 @@ class DQNAgent:
 
                 self.train_step()
 
-            rewards_history.append(episode_reward)
+            self.rewards_history.append(episode_reward)
 
             if episode % 10 == 0:
                 print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
 
-            if episode % 50 == 0:
-                self._plot_rewards(rewards_history)
-
         self.env.close()
+
 
     def _flatten_state(self, state):
         agent = state["agent"]
         agent_angle = state["agent_angle"]
         target_angle = state["target_angle"]
         return np.concatenate([agent, agent_angle, target_angle])
-
-    def _plot_rewards(self, rewards):
-        plt.plot(rewards)
-        plt.xlabel("Episodes")
-        plt.ylabel("Rewards")
-        plt.title("Training Progress")
-        plt.show()
 
 # Инициализация среды и агента
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')

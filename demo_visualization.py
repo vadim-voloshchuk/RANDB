@@ -10,6 +10,9 @@ import pygame
 import redandblue
 from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
 import threading
+import matplotlib
+
+matplotlib.use('TkAgg')
 
 
 # Использование GPU

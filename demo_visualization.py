@@ -149,7 +149,7 @@ class DQNAgent:
         plt.show()
 
 # Инициализация среды и агента
-env = gym.make("RedAndBlue-v0.1", render_mode="human", size=50, target_behavior='circle')
+env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 
 agent = DQNAgent(env)
 agent.train(num_episodes=500)

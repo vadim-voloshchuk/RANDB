@@ -56,7 +56,7 @@ class RedAndBlue(gym.Env):
     view_angle = 90
 
     max_steps_per_round = 200  # Maximum steps allowed before the round ends
-    negative_reward_threshold = -50  # Threshold for negative reward to trigger a loss
+    negative_reward_threshold = -100  # Threshold for negative reward to trigger a loss
 
 
     def __init__(self, render_mode=None, size=100, target_behavior='circle', obstacle_percentage=0.2, obstacle_type='random', fps=4):

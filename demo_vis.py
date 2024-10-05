@@ -104,8 +104,8 @@ class DQNAgent:
         dones = torch.FloatTensor(dones).to(device)
         next_angles = torch.FloatTensor(next_angles).to(device)
 
-        # Use the updated autocast context manager
-        with torch.amp.autocast():
+        # Use the updated autocast context manager with device_type
+        with torch.amp.autocast(device_type='cuda'):
             q_values, angles = self.q_network(states)
             next_q_values, next_angles = self.target_network(next_states)
 
@@ -126,6 +126,7 @@ class DQNAgent:
         self.steps_done += 1
         if self.steps_done % self.update_target_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
+
 
 
     def save_weights(self, episode):

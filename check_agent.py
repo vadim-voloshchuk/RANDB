@@ -30,7 +30,7 @@ class DQN(nn.Module):
         angle = self.angle_head(x)
         return action, angle
     
-# Агент DQN (как ранее)
+# Агент DQN
 class DQNAgent:
     def __init__(self, env):
         self.env = env
@@ -39,7 +39,7 @@ class DQNAgent:
 
         # Загрузка модели
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
-        self.q_network.load_state_dict(torch.load("dqn_weights_episode_500.pth"), strict=False)
+        self.q_network.load_state_dict(torch.load("dqn_weights_episode_400.pth"), strict=False)
         self.q_network.eval()
 
         # Статистика
@@ -106,19 +106,24 @@ def update_plot(frame):
         plt.legend()
         plt.xlim(0, len(agent.wins_history) + 10)  # Устанавливаем пределы по оси X
         plt.ylim(0, max(max(agent.wins_history), max(agent.losses_history), 10))  # Устанавливаем пределы по оси Y
+        plt.pause(0.1)  # Пауза для обновления графика
 
-# Инициализация агента и поток для графика
+# Инициализация агента
 agent = DQNAgent(env)
 
 # Создание графика
 plt.figure(figsize=(10, 5))
-ani = FuncAnimation(plt.gcf(), update_plot, interval=100)  # Обновление каждые 100 мс
+plt.ion()  # Включение интерактивного режима
 
 # Запуск оценки в отдельном потоке
 evaluation_thread = threading.Thread(target=agent.evaluate, args=(100,))
 evaluation_thread.start()
 
-plt.show()  # Показ графика
+while evaluation_thread.is_alive():
+    update_plot(None)  # Обновление графика
+    plt.pause(0.1)  # Пауза для обновления графика
+
+plt.show()  # Показ графика после завершения
 
 # Ожидание завершения потока оценки
 evaluation_thread.join()

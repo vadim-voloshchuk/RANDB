@@ -103,7 +103,8 @@ class DQNAgent:
         dones = torch.FloatTensor(dones).to(device)
         next_angles = torch.FloatTensor(next_angles).to(device)
 
-        with autocast():
+        # Use the updated autocast context manager
+        with torch.amp.autocast(device_type='cuda'):
             q_values, angles = self.q_network(states)
             next_q_values, next_angles = self.target_network(next_states)
 

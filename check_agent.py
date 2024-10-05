@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import threading
 
+import redandblue
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Инициализация среды

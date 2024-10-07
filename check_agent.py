@@ -11,34 +11,38 @@ import redandblue
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Инициализация среды
-env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
+env = gym.make("RedAndBlue-v0.1", render_mode="human", size=50, target_behavior='circle')
 
 # Сеть для DQN с поддержкой AMP
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim, angle_dim=1):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
+        self.fc1 = nn.Linear(input_dim, 512)  # Увеличено количество нейронов
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128)  # Третий слой увеличен
         self.action_head = nn.Linear(128, output_dim)
         self.angle_head = nn.Linear(128, angle_dim)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))  # Применяем активацию для третьего слоя
         action = self.action_head(x)
-        angle = self.angle_head(x)
+        angle = torch.sigmoid(self.angle_head(x)) * 360  # Масштабирование угла до диапазона [0, 360]
         return action, angle
+
     
 # Агент DQN
 class DQNAgent:
     def __init__(self, env):
         self.env = env
-        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Угол обзора и цель
+        self.size = env.size
+        self.state_dim = env.observation_space["agent"].shape[0] + env.observation_space["target"].shape[0] + 2 + 1  + self.size * self.size# Угол обзора и цель
         self.action_dim = env.action_space["move"].n
 
         # Загрузка модели
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
-        self.q_network.load_state_dict(torch.load("dqn_weights_episode_400.pth"), strict=False)
+        self.q_network.load_state_dict(torch.load("dqn_weights_episode_1000.pth"), strict=False)
         self.q_network.eval()
 
         # Статистика
@@ -55,17 +59,17 @@ class DQNAgent:
         with torch.no_grad():
             action_values, angle_values = self.q_network(state)
             action = action_values.argmax().item()
-            predicted_angle = angle_values.argmax().item()  # Получаем индекс угла
+            predicted_angle = angle_values.item()  # Получаем индекс угла
         return action, predicted_angle
 
     def evaluate(self, num_episodes=100):
         for episode in range(num_episodes):
-            state, _ = self.env.reset()
+            state, info = self.env.reset()
             done = False
             episode_reward = 0
             
             while not done:
-                action, predicted_angle = self.select_action(self._flatten_state(state))
+                action, predicted_angle = self.select_action(self._flatten_state(state, info))
                 next_state, reward, done, _, _ = self.env.step({"move": action, "view_angle": predicted_angle})
 
                 episode_reward += reward
@@ -87,11 +91,24 @@ class DQNAgent:
             # Вывод информации об эпизоде
             print(f"Episode {episode}: Reward {episode_reward}")
 
-    def _flatten_state(self, state):
+    def _flatten_state(self, state, info):
         agent = state["agent"]
+        target = state["target"]
         agent_angle = state["agent_angle"]
         target_angle = state["target_angle"]
-        return np.concatenate([agent, agent_angle, target_angle])
+        distance = info["distance"]
+        obs = info["obstacles"]
+        
+        # Инициализируем матрицу 100x100 (например, с препятствиями)
+        grid = np.zeros((self.size, self.size))
+        for obstacle in obs:
+            grid[obstacle[0], obstacle[1]] = 1
+
+        flattened_grid = grid.flatten()
+
+        # Добавляем матрицу к остальным частям состояния
+        return np.concatenate([agent, agent_angle, target, target_angle, [distance], flattened_grid])
+
 
 # Функция для обновления графика
 def update_plot(frame):

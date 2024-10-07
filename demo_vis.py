@@ -11,6 +11,9 @@ import redandblue
 from torch.cuda.amp import autocast, GradScaler  # Для использования AMP
 import threading
 import matplotlib
+import matplotlib.animation as animation
+import pandas as pd  # Импортируем pandas для работы с таблицей
+
 
 matplotlib.use('TkAgg')
 
@@ -53,7 +56,7 @@ class ReplayBuffer:
 class DQNAgent:
     def __init__(self, env, buffer_size=100000, batch_size=256, gamma=0.99, lr=1e-3):
         self.env = env
-        self.state_dim = env.observation_space["agent"].shape[0] + 2  # Угол обзора и цель
+        self.state_dim = env.observation_space["agent"].shape[0] + env.observation_space["target"].shape[0] + 2  # Угол обзора и цель
         self.action_dim = env.action_space["move"].n
 
         self.q_network = DQN(self.state_dim, self.action_dim).to(device)
@@ -77,6 +80,44 @@ class DQNAgent:
         self.wins_history = []  # Счёт выигрышей
         self.losses_history = []  # Счёт проигрышей
         self.lock = threading.Lock()  # Для синхронизации доступа к историям
+
+        # Инициализация графиков и анимации
+        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        self.rewards_line, = self.ax1.plot([], label='Current Rewards', color='blue')
+        self.ax1.set_xlabel("Episodes")
+        self.ax1.set_ylabel("Rewards")
+        self.ax1.set_title("Current Rewards")
+        self.ax1.legend()
+
+        self.wins_line, = self.ax2.plot([], label='Wins', color='green')
+        self.losses_line, = self.ax2.plot([], label='Losses', color='red')
+        self.ax2.set_xlabel("Episodes")
+        self.ax2.set_ylabel("Count")
+        self.ax2.set_title("Wins and Losses")
+        self.ax2.legend()
+
+        self.ani = animation.FuncAnimation(
+            self.fig,
+            self.update_plot,
+            fargs=(self.rewards_history, self.wins_history, self.losses_history, self.rewards_line, self.wins_line, self.losses_line),
+            interval=1000,  # Обновление графиков каждую 1 секунду
+            blit=True
+        )
+
+        # Инициализация DataFrame для записи данных
+        self.log_data = pd.DataFrame(columns=['Episode', 'Reward', 'Wins', 'Losses', 'Epsilon'])
+
+        # Функция для обновления графиков
+    def update_plot(self, num, rewards_history, wins_history, losses_history, rewards_line, wins_line, losses_line):
+        rewards_line.set_data(range(len(rewards_history)), rewards_history)
+        wins_line.set_data(range(len(wins_history)), wins_history)
+        losses_line.set_data(range(len(losses_history)), losses_history)
+
+        self.ax1.relim()
+        self.ax1.autoscale_view()
+        self.ax2.relim()
+        self.ax2.autoscale_view()
+        return rewards_line, wins_line, losses_line
 
     def select_action(self, state):
         if random.random() < self.epsilon:
@@ -163,9 +204,25 @@ class DQNAgent:
                 self.wins_history.append(episode_wins)
                 self.losses_history.append(episode_losses)
 
+                        # Запись данных в DataFrame
+            new_data = pd.DataFrame({
+                'Episode': [episode],
+                'Reward': [episode_reward],
+                'Wins': [episode_wins],
+                'Losses': [episode_losses],
+                'Epsilon': [self.epsilon]
+            })
+
+            self.log_data = pd.concat([self.log_data, new_data], ignore_index=True)
+
             # Отладочный вывод
             print(f"Episode {episode}: Reward {episode_reward}, Epsilon {self.epsilon}")
             print(f"Current Rewards History: {self.rewards_history}")  # Проверяем историю наград
+
+            #Сохранение таблицы с данными в CSV-файл
+            self.log_data.to_csv("training_log_normal_reward.csv", index=False)
+            print("Training log saved to training_log.csv")
+
 
             # Сохранение весов каждые 100 эпизодов
             if episode % 100 == 0:
@@ -176,14 +233,19 @@ class DQNAgent:
 
         self.env.close()
 
+        # Сохранение видео после завершения обучения
+        self.ani.save("training_progress.mp4", writer="ffmpeg")
+
     def _flatten_state(self, state):
         agent = state["agent"]
+        target = state["agent"]
         agent_angle = state["agent_angle"]
         target_angle = state["target_angle"]
-        return np.concatenate([agent, agent_angle, target_angle])
+
+        return np.concatenate([agent, agent_angle, target, target_angle])
 
 # Инициализация среды и агента
 env = gym.make("RedAndBlue-v0.1", render_mode=None, size=50, target_behavior='circle')
 
 agent = DQNAgent(env)
-agent.train(num_episodes=500)
+agent.train(num_episodes=5000)

@@ -520,9 +520,9 @@ class RedAndBlue(gym.Env):
         angle_difference = 0  # Объявляем и инициализируем angle_difference
 
         if agent_wins:
-            reward += 100 
+            reward += 10000
         elif target_wins:
-            reward -= 100 
+            reward -= 10000
         else:
             # Динамическая награда за приближение
             distance_change = old_distance - new_distance
@@ -539,7 +539,7 @@ class RedAndBlue(gym.Env):
             # Расчет angle_difference
             delta = self._target_location - self._agent_location
             desired_angle = (np.degrees(np.arctan2(delta[1], delta[0])) + 360) % 360
-            angle_difference = abs((desired_angle - self.agent_angle + 180) % 360 - 180)
+            angle_difference = abs(desired_angle - self.agent_angle)
 
             # Штраф за угол + бонус за уменьшение разницы углов
             reward -= (angle_difference / 360) * 10 
@@ -548,6 +548,6 @@ class RedAndBlue(gym.Env):
 
             # Динамический бонус за близость и правильный угол
             if new_distance <= self.view_distance and angle_difference <= 45:
-                reward += 10 * (1 / new_distance) * (1 - angle_difference / 45)
+                reward += 10 * (1 / new_distance) * (1 / angle_difference)
 
         return reward, angle_difference  # Возвращаем reward и angle_difference

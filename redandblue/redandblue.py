@@ -176,13 +176,14 @@ class RedAndBlue(gym.Env):
         self.agent_w = agent_wins
         self.agent_l = target_wins
         print(agent_wins, target_wins)
+
+        print("Ебучий угол говна:" + str(self.agent_angle))
+        if self.agent_angle == None:
+            self.agent_angle == 0
         observation = self._get_obs()
 
         print(f"Reward: {self.current_round_reward}")
         print(self.current_step_count)
-
-        if self.agent_angle == None:
-            self.agent_angle == 0
 
         return observation, self.current_round_reward, terminated, False, info
 

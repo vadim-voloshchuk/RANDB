@@ -183,6 +183,9 @@ class RedAndBlue(gym.Env):
         print(f"Reward: {self.current_round_reward}")
         print(self.current_step_count)
 
+        if self.agent_angle == None:
+            self.agent_angle == 0
+
         return observation, self.current_round_reward, terminated, False, info
 
     def _calculate_reward(self, old_distance, new_distance, agent_wins, target_wins):

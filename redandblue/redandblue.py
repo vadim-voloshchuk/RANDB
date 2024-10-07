@@ -140,8 +140,6 @@ class RedAndBlue(gym.Env):
         self.agent_angle = view_angle_action
         new_location = self._agent_location.copy()
 
-        state = self._get_obs()
-
         if move_action != 4:
             direction = self._action_to_direction[move_action]
             new_location = np.clip(self._agent_location + direction, 0, self.size - 1)

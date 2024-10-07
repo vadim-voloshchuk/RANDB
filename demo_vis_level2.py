@@ -199,8 +199,8 @@ class DQNAgent:
             while not done:
                 self.env.render()
                 action, predicted_angle = self.select_action(self._flatten_state(state, info))
-                print({"move": action, "view_angle": predicted_angle})
                 next_state, reward, done, _, next_info = self.env.step({"move": action, "view_angle": predicted_angle})
+                print({"reward": reward, "move": action, "view_angle": predicted_angle, "w": next_state["agent_w"], "l": next_state["agent_l"]})
 
                 self.replay_buffer.push(self._flatten_state(state, info), action, reward, self._flatten_state(next_state, next_info), done, predicted_angle)
                 state = next_state
@@ -209,9 +209,9 @@ class DQNAgent:
                 self.train_step()
 
             # Обновление счёта выигрыш/проигрыш
-            if episode_reward == 100:
+            if next_state["agent_w"]:
                 episode_wins += 1
-            elif episode_reward == -100:
+            elif next_state["agent_l"]:
                 episode_losses += 1
 
             with self.lock:

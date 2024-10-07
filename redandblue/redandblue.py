@@ -72,6 +72,9 @@ class RedAndBlue(gym.Env):
         self.agent_angle = 0
         self.target_angle = 0
 
+        self.agent_w = False
+        self.agent_l = False
+
         self.action_space = spaces.Dict({
             "move": spaces.Discrete(5),
             "view_angle": spaces.Discrete(360)
@@ -82,7 +85,9 @@ class RedAndBlue(gym.Env):
                 "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
                 "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
                 "agent_angle": spaces.Box(0, 360, shape=(1,), dtype=int),
-                "target_angle": spaces.Box(0, 360, shape=(1,), dtype=int)
+                "target_angle": spaces.Box(0, 360, shape=(1,), dtype=int),
+                "agent_w": spaces.Box(0, 1, shape=(1,), dtype=int),
+                "agent_l": spaces.Box(0, 1, shape=(1,), dtype=int)
             }
         )
 
@@ -111,7 +116,9 @@ class RedAndBlue(gym.Env):
             "agent": np.array(self._agent_location, dtype=int),
             "target": np.array(self._target_location, dtype=int),
             "agent_angle": np.array([self.agent_angle], dtype=int),
-            "target_angle": np.array([self.target_angle], dtype=int)
+            "target_angle": np.array([self.target_angle], dtype=int),
+            "agent_w": self.agent_w,
+            "agent_l": self.agent_l
         }
 
     def _get_info(self):
@@ -125,6 +132,9 @@ class RedAndBlue(gym.Env):
     def step(self, action):
         move_action = action["move"]
         view_angle_action = action["view_angle"]
+
+        self.agent_w = False
+        self.agent_l = False
 
         old_distance = np.linalg.norm(self._agent_location - self._target_location)
         self.agent_angle = view_angle_action
@@ -147,15 +157,16 @@ class RedAndBlue(gym.Env):
         agent_wins = self._check_visibility_agent()
         target_wins = self._check_visibility_target()
         terminated = agent_wins or target_wins 
-        observation = self._get_obs()
         info = self._get_info()
 
         if self.render_mode == "human":
             self._render_frame()
 
         new_distance = np.linalg.norm(self._agent_location - self._target_location)
-        reward = self._calculate_reward_variant3(old_distance, new_distance, agent_wins, target_wins, action, state)
-
+                # Изменение: вызов _calculate_reward_dynamic с old_angle_difference
+        reward, self.old_angle_difference = self._calculate_reward_dynamic(
+            old_distance, new_distance, agent_wins, target_wins, self.old_angle_difference
+        )
         self.current_round_reward += reward 
         self.current_step_count += 1
 
@@ -163,11 +174,16 @@ class RedAndBlue(gym.Env):
         terminated = agent_wins or target_wins or \
                      self.current_round_reward <= self.negative_reward_threshold or \
                      self.current_step_count >= self.max_steps_per_round
+        
+        self.agent_w = agent_wins
+        self.agent_l = target_wins
+        print(agent_wins, target_wins)
+        observation = self._get_obs()
 
         print(f"Reward: {self.current_round_reward}")
         print(self.current_step_count)
 
-        return observation, reward, terminated, False, info
+        return observation, self.current_round_reward, terminated, False, info
 
     def _calculate_reward(self, old_distance, new_distance, agent_wins, target_wins):
         """
@@ -191,6 +207,8 @@ class RedAndBlue(gym.Env):
         self._place_obstacles()
         self.current_round_reward = 0
         self.current_step_count = 0 
+
+        self.old_angle_difference = None #  Инициализируем old_angle_difference в reset
 
         self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
         while self._is_collision(self._agent_location):
@@ -495,3 +513,41 @@ class RedAndBlue(gym.Env):
 
 
         return reward
+
+
+    def _calculate_reward_dynamic(self, old_distance, new_distance, agent_wins, target_wins, old_angle_difference=None):
+        reward = 0
+        angle_difference = 0  # Объявляем и инициализируем angle_difference
+
+        if agent_wins:
+            reward += 100 
+        elif target_wins:
+            reward -= 100 
+        else:
+            # Динамическая награда за приближение
+            distance_change = old_distance - new_distance
+            reward += distance_change * (1 / new_distance) 
+
+            # Динамический штраф за время
+            reward -= self.current_step_count * (1 / new_distance) 
+
+            # Динамический штраф за столкновение
+            num_obstacles = len(self._obstacles)
+            if self._is_collision(self._agent_location):
+                reward -= 10 * (num_obstacles / (self.size * self.size)) 
+
+            # Расчет angle_difference
+            delta = self._target_location - self._agent_location
+            desired_angle = (np.degrees(np.arctan2(delta[1], delta[0])) + 360) % 360
+            angle_difference = abs((desired_angle - self.agent_angle + 180) % 360 - 180)
+
+            # Штраф за угол + бонус за уменьшение разницы углов
+            reward -= (angle_difference / 360) * 10 
+            if old_angle_difference is not None:  # Проверка на первый шаг
+                reward += max(0, (old_angle_difference - angle_difference) * 2)
+
+            # Динамический бонус за близость и правильный угол
+            if new_distance <= self.view_distance and angle_difference <= 45:
+                reward += 10 * (1 / new_distance) * (1 - angle_difference / 45)
+
+        return reward, angle_difference  # Возвращаем reward и angle_difference

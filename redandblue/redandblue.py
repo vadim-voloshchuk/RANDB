@@ -177,9 +177,8 @@ class RedAndBlue(gym.Env):
         self.agent_l = target_wins
         print(agent_wins, target_wins)
 
-        print("Ебучий угол говна:" + str(self.agent_angle))
-        if self.agent_angle == None:
-            self.agent_angle == 0
+        if self.agent_angle == None or str(self.agent_angle) == "nan":
+            self.agent_angle = 0
         observation = self._get_obs()
 
         print(f"Reward: {self.current_round_reward}")
